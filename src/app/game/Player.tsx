@@ -7,13 +7,20 @@ import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import { useSpring, a } from '@react-spring/three';
-import { Group, AnimationMixer } from 'three';
+import { Group, AnimationMixer, AnimationClip } from 'three';
 import { useAgentsStore } from './store/agents';
 import { TILE_SIZE } from './types';
 
 interface PlayerProps {
   agentId: string;
 }
+
+type BunnyGLTF = {
+  animations: AnimationClip[];
+  scene: Group;
+};
+
+useGLTF.preload('/models/bunny.glb');
 
 export function Player({ agentId }: PlayerProps) {
   const groupRef = useRef<Group>(null);
@@ -24,12 +31,7 @@ export function Player({ agentId }: PlayerProps) {
     state.agents.find((a) => a.id === agentId)
   );
 
-  let gltf: any = null;
-  try {
-    gltf = useGLTF('/models/bunny.glb');
-  } catch {
-    gltf = null;
-  }
+  const gltf = useGLTF('/models/bunny.glb') as BunnyGLTF;
 
   const [positionSpring, positionApi] = useSpring(() => ({
     x: agent?.x ?? 0,
@@ -41,7 +43,7 @@ export function Player({ agentId }: PlayerProps) {
     if (!groupRef.current || !gltf?.animations?.length) return;
 
     mixerRef.current = new AnimationMixer(groupRef.current);
-    const idleClip = gltf.animations.find((clip: any) =>
+    const idleClip = gltf.animations.find((clip: AnimationClip) =>
       clip.name.toLowerCase().includes('idle')
     );
 
@@ -71,7 +73,7 @@ export function Player({ agentId }: PlayerProps) {
 
   if (!agent) return null;
 
-  if (!gltf) {
+  if (!gltf?.scene) {
     return (
       <mesh position={[agent.x * TILE_SIZE, 0.5, agent.y * TILE_SIZE]} castShadow>
         <sphereGeometry args={[0.3, 16, 16]} />

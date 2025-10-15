@@ -79,9 +79,6 @@ export async function initializeMultiAgentGame(numAgents: number = 4) {
  * EXAMPLE 3: Run a full episode and collect statistics
  */
 export async function runEpisode(maxSteps: number = 200) {
-  const gameStore = useGameStore.getState();
-  const agentStore = useAgentsStore.getState();
-
   const stats = {
     totalSteps: 0,
     totalReward: 0,
@@ -181,7 +178,6 @@ export async function testInference() {
  */
 export function resetAndReplay() {
   const gameStore = useGameStore.getState();
-  const agentStore = useAgentsStore.getState();
 
   console.log('Resetting game...');
 

@@ -7,13 +7,20 @@ import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import { useSpring, a } from '@react-spring/three';
-import { Group, AnimationMixer } from 'three';
+import { Group, AnimationMixer, AnimationClip } from 'three';
 import { useAgentsStore } from './store/agents';
 import { TILE_SIZE } from './types';
 
 interface PlayerProps {
   agentId: string;
 }
+
+type BunnyGLTF = {
+  animations: AnimationClip[];
+  scene: Group;
+};
+
+useGLTF.preload('/models/bunny.glb');
 
 export function Player({ agentId }: PlayerProps) {
   const groupRef = useRef<Group>(null);
@@ -26,14 +33,7 @@ export function Player({ agentId }: PlayerProps) {
   );
 
   // Load bunny model - always called
-  let gltf = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const loaded = useGLTF('/models/bunny.glb');
-    gltf = loaded;
-  } catch (error) {
-    console.warn('Failed to load bunny model');
-  }
+  const gltf = useGLTF('/models/bunny.glb') as BunnyGLTF;
 
   // Spring animations - always called
   const [positionSpring, positionApi] = useSpring(() => ({
@@ -49,12 +49,12 @@ export function Player({ agentId }: PlayerProps) {
 
   // Setup animation mixer
   useEffect(() => {
-    if (!groupRef.current || !gltf || !gltf.animations || gltf.animations.length === 0) {
+    if (!groupRef.current || !gltf?.animations?.length) {
       return;
     }
 
     mixerRef.current = new AnimationMixer(groupRef.current);
-    const idleAction = gltf.animations.find((clip) =>
+    const idleAction = gltf.animations.find((clip: AnimationClip) =>
       clip.name.toLowerCase().includes('idle')
     );
     if (idleAction) {
@@ -64,7 +64,7 @@ export function Player({ agentId }: PlayerProps) {
     return () => {
       mixerRef.current?.stopAllAction();
     };
-  }, [gltf?.animations]);
+  }, [gltf]);
 
   // Update animation mixer on frame
   useFrame((_, delta) => {
@@ -88,14 +88,14 @@ export function Player({ agentId }: PlayerProps) {
       });
       lastPosRef.current = [agent.x, agent.y];
     }
-  }, [agent?.x, agent?.y, positionApi, rotationApi]);
+  }, [agent, agent?.x, agent?.y, positionApi, rotationApi]);
 
   if (!agent) {
     return null;
   }
 
   // Fallback mesh if model didn't load
-  if (!gltf) {
+  if (!gltf?.scene) {
     return (
       <mesh position={[agent.x * TILE_SIZE, 0.5, agent.y * TILE_SIZE]} castShadow>
         <sphereGeometry args={[0.3, 16, 16]} />
@@ -107,10 +107,10 @@ export function Player({ agentId }: PlayerProps) {
   return (
     <a.group
       ref={groupRef}
-      position={positionSpring.x
-        .to((x) => x * TILE_SIZE)
-        .to((x) => [x, 0, positionSpring.y.get() * TILE_SIZE] as const)}
-      rotation={rotationSpring.rotY.to((r) => [0, r, 0] as const)}
+      position-x={positionSpring.x.to((x) => x * TILE_SIZE)}
+      position-y={0}
+      position-z={positionSpring.y.to((y) => y * TILE_SIZE)}
+      rotation-y={rotationSpring.rotY}
       castShadow
       receiveShadow
     >

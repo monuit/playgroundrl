@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import type { Mesh } from 'three';
-import type { PlowAgent } from '@/app/game/types_new';
+import type { PlowAgent } from '@/types/game';
 
 interface PlowAgentProps {
   agent: PlowAgent;

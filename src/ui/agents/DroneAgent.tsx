@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import type { Mesh } from 'three';
-import type { DroneAgent } from '@/app/game/types_new';
+import type { DroneAgent } from '@/types/game';
 
 interface DroneAgentProps {
   agent: DroneAgent;

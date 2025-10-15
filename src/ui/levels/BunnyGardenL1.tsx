@@ -4,7 +4,7 @@ import { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
 import * as THREE from 'three';
-import type { LevelConfig } from '@/app/game/types_new';
+import type { LevelConfig } from '@/types/game';
 
 interface BunnyGardenL1Props {
   level: LevelConfig;

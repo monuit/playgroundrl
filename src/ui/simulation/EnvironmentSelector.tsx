@@ -2,8 +2,8 @@
 
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import type { EnvironmentType, LevelType } from '@/app/game/types_new';
-import { EnvironmentType as EnvEnum, LevelType as LevelEnum } from '@/app/game/types_new';
+import type { EnvironmentType, LevelType } from '@/types/game';
+import { EnvironmentType as EnvEnum, LevelType as LevelEnum } from '@/types/game';
 
 interface EnvironmentSelectorProps {
   selectedEnv: EnvironmentType | null;

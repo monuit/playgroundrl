@@ -4,8 +4,8 @@ import { create } from "zustand";
 import type { StoreApi } from "zustand";
 import type { Difficulty, GridRenderableState } from "@/lib/simulation/gridWorld";
 import type { SimulationCommand, SimulationEvent } from "@/workers/simulation.types";
-import type { EnvironmentType, LevelType } from "@/app/game/types_new";
-import { EnvironmentType as EnvEnum, LevelType as LevelEnum } from "@/app/game/types_new";
+import type { EnvironmentType, LevelType } from '@/types/game';
+import { EnvironmentType as EnvEnum, LevelType as LevelEnum } from '@/types/game';
 
 const placeholderFrame: GridRenderableState = {
   size: 25,

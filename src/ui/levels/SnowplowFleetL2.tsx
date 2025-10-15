@@ -4,7 +4,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
 import { useRef } from 'react';
 import type { Mesh } from 'three';
-import type { LevelConfig } from '@/app/game/types_new';
+import type { LevelConfig } from '@/types/game';
 
 interface SnowplowFleetL2Props {
   level: LevelConfig;

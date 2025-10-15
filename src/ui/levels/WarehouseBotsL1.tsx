@@ -2,7 +2,7 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
-import type { LevelConfig } from '@/app/game/types_new';
+import type { LevelConfig } from '@/types/game';
 
 interface WarehouseBotsL1Props {
   level: LevelConfig;

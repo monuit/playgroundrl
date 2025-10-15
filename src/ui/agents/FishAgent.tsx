@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import type { Mesh } from 'three';
-import type { FishAgent } from '@/app/game/types_new';
+import type { FishAgent } from '@/types/game';
 
 interface FishAgentProps {
   agent: FishAgent;

@@ -59,7 +59,7 @@ function CanvasInner() {
       <ContactShadows
         position={[0, -0.01, 0]}
         opacity={0.4}
-        scale={frame.size * 2}
+        scale={Number.isFinite(frame.size) && frame.size > 0 ? frame.size * 2 : 50}
         blur={2.4}
         far={16}
       />

@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import type { Mesh } from 'three';
-import type { BotAgent } from '@/app/game/types_new';
+import type { BotAgent } from '@/types/game';
 
 interface BotAgentProps {
   agent: BotAgent;

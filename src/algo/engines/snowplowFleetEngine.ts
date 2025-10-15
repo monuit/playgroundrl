@@ -1,5 +1,5 @@
-import type { LevelConfig } from "@/app/game/types_new";
-import { EnvironmentType } from "@/app/game/types_new";
+import type { LevelConfig } from '@/types/game';
+import { EnvironmentType } from '@/types/game';
 import {
   buildObstacleSet,
   isBlockedByObstacle,

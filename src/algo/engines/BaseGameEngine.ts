@@ -10,7 +10,7 @@ import {
   LevelConfig,
   GRID_MAX,
   GRID_ORIGIN,
-} from '../../app/game/types_new';
+} from '@/types/game';
 
 /**
  * Build obstacle set from level config for fast collision checking

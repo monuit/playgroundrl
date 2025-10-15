@@ -1,8 +1,8 @@
 'use client';
 
 import { ComponentType, useMemo } from 'react';
-import type { EnvironmentType, LevelType } from '@/app/game/types_new';
-import { EnvironmentType as EnvEnum, LevelType as LevelEnum } from '@/app/game/types_new';
+import type { EnvironmentType, LevelType } from '@/types/game';
+import { EnvironmentType as EnvEnum, LevelType as LevelEnum } from '@/types/game';
 import {
   SwarmDronesDefinition,
   ReefGuardiansDefinition,
@@ -19,6 +19,57 @@ interface EnvironmentRendererProps {
   environment: EnvironmentType | null;
   level: LevelType | null;
 }
+
+const sanitizeState = <T,>(value: T, depth = 0, seen = new WeakSet<object>()): T => {
+  if (depth > 8) {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) {
+      return value;
+    }
+    if (Number.isNaN(value)) {
+      return 0 as T;
+    }
+    if (value === Infinity || value === -Infinity) {
+      return Math.sign(value) as unknown as T;
+    }
+    return 0 as T;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  if (seen.has(value as object)) {
+    return value;
+  }
+
+  seen.add(value as object);
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeState(item, depth + 1, seen)) as unknown as T;
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    const ctor = (value as { constructor: { new (iterable: Iterable<number>): unknown } }).constructor;
+    try {
+      const sanitized = Array.from(value as unknown as Iterable<number>, (item) =>
+        Number.isFinite(item) ? item : 0
+      );
+      return new ctor(sanitized) as T;
+    } catch {
+      return value;
+    }
+  }
+
+  const result: Record<string, unknown> = {};
+  Object.entries(value as Record<string, unknown>).forEach(([key, entry]) => {
+    result[key] = sanitizeState(entry, depth + 1, seen);
+  });
+  return result as T;
+};
 
 const BUNNY_BOUNDS = 120;
 const BUNNY_MAX_STEPS = 240;
@@ -385,27 +436,27 @@ export function EnvironmentRenderer({ environment, level }: EnvironmentRendererP
       case EnvEnum.BUNNY_GARDEN:
         return {
           SceneComponent: BunnyGardenDefinition.Scene as ComponentType<{ state: unknown }>,
-          state: createBunnyDisplayState(level),
+          state: sanitizeState(createBunnyDisplayState(level)),
         };
       case EnvEnum.SWARM_DRONES:
         return {
           SceneComponent: SwarmDronesDefinition.Scene as ComponentType<{ state: unknown }>,
-          state: createSwarmDisplayState(level),
+          state: sanitizeState(createSwarmDisplayState(level)),
         };
       case EnvEnum.REEF_GUARDIANS:
         return {
           SceneComponent: ReefGuardiansDefinition.Scene as ComponentType<{ state: unknown }>,
-          state: createReefDisplayState(level),
+          state: sanitizeState(createReefDisplayState(level)),
         };
       case EnvEnum.WAREHOUSE_BOTS:
         return {
           SceneComponent: WarehouseBotsDefinition.Scene as ComponentType<{ state: unknown }>,
-          state: createWarehouseDisplayState(level),
+          state: sanitizeState(createWarehouseDisplayState(level)),
         };
       case EnvEnum.SNOWPLOW_FLEET:
         return {
           SceneComponent: SnowplowFleetDefinition.Scene as ComponentType<{ state: unknown }>,
-          state: createSnowplowDisplayState(level),
+          state: sanitizeState(createSnowplowDisplayState(level)),
         };
       default:
         return { SceneComponent: null, state: null };
@@ -413,11 +464,7 @@ export function EnvironmentRenderer({ environment, level }: EnvironmentRendererP
   }, [environment, level]);
 
   if (!SceneComponent || !state) {
-    return (
-      <div className="flex items-center justify-center w-full h-full text-slate-300">
-        Select an environment and level to begin
-      </div>
-    );
+    return null;
   }
 
   return <SceneComponent state={state} />;

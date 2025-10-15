@@ -11,7 +11,7 @@ import {
   EnvironmentType,
   BunnyAgent,
   BunnyAction,
-} from '../../app/game/types_new';
+} from '@/types/game';
 
 import {
   buildObstacleSet,

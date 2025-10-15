@@ -1,6 +1,6 @@
 # PlaygroundRL
 
-PlaygroundRL is a browser-native reinforcement learning studio with a freshly overhauled neon interface inspired by PPO Bunny. Agents train entirely on the client using TensorFlow.js, while React Three Fiber renders immersive environments and dedicated Web Workers keep the main thread responsive. No backend, no GPU—just WebAssembly, WebGL, and IndexedDB.
+PlaygroundRL is a browser-native reinforcement learning studio with a freshly overhauled neon interface. Agents train entirely on the client using TensorFlow.js, while React Three Fiber renders immersive environments and dedicated Web Workers keep the main thread responsive. No backend, no GPU—just WebAssembly, WebGL, and IndexedDB.
 
 ## Quick start
 
@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:3000> to launch the dashboard. Flip between environments, pick algorithms, retune hyperparameters, edit reward functions, and manage checkpoints directly in the browser.
+Open <http://localhost:3000> to launch the live playground. Drop in ONNX policies, spawn glowing agents, and let the browser stream inference across a 3D grid world without touching a backend.
 
 ### Verify before shipping
 
@@ -22,12 +22,12 @@ Both commands should succeed cleanly; they are already tested against the latest
 
 ## Architecture overview
 
-- **UI (Next.js + R3F)** — `src/ui` contains the dashboard, environment canvases, control panels, metrics charts, and checkpoint tools.
-- **State (Zustand)** — `src/state/trainingStore.ts` wires UI actions to background workers, persistence, and diagnostics.
-- **Environments** — `src/env` hosts the playable library (Pong, Maze, Tiny Grid, CartPole Lite, Flappy Lite, Mountain Car, Bunny Garden) and shared typings.
-- **Algorithms** — `src/algo/dqn_tfjs.ts` and `src/algo/ppo_tfjs.ts` provide lightweight tfjs implementations with replay buffers, schedules, and diagnostics hooks.
-- **Workers** — `src/workers/trainer.worker.ts` runs PPO/DQN updates off the main thread. Reward validation happens in-sandbox via AST checks before execution.
-- **Persistence** — `src/state/persistence.ts` wraps Dexie/IndexedDB for manifests, metrics, checkpoints, and blobs. `src/state/export_import.ts` exports/imports `.playgroundrl.zip` bundles or pure JSON payloads.
+- **UI (Next.js + R3F)** — `src/ui/simulation` builds the live agent playground, including the canvas, control surface, and telemetry overlays.
+- **State (Zustand)** — `src/state/simulationStore.ts` orchestrates worker commands, policy lifecycle, and frame streaming to the UI.
+- **Simulation engine** — `src/lib/simulation/gridWorld.ts` contains a deterministic grid-world with heuristics, rewards, and instanced render metadata.
+- **Policy runtime** — `src/lib/simulation/policyRunner.ts` wraps ONNX Runtime Web for batched inference and argmax action selection.
+- **Workers** — `src/workers/simulation.worker.ts` advances the grid world, funnels observations to the policy runner, and emits renderable frames.
+- **Legacy RL toolkit** — The original PPO/DQN trainer, checkpoints, and persistence helpers still live under `src/algo`, `src/state/persistence.ts`, and `src/workers/trainer.worker.ts` if you need in-browser training flows.
 
 ```text
 app/        Next.js app router entry points
@@ -41,21 +41,85 @@ public/
   workers/  Worker bundles served statically
 ```
 
-## PPO Bunny visual refresh
+- **Grid world renderer** — lightweight instanced meshes, adaptive sparkles, and soft neon lights render dozens of agents without dropping frames.
+- **ONNX hot-swap** — load a pre-trained actor from `public/models/` or your disk; inference happens in the main canvas instantly.
+- **Quality toggles** — medium mode disables shadows and trims VFX for battery-friendly demos; high mode keeps the full neon bloom.
+- **Heuristic fallback** — if no policy is loaded, the worker supplies a greedy baseline so the playground always feels alive.
+- **Controls refresh** — streamlined panel exposes difficulty, agent counts, playback speed, and policy management in one place.
 
-- **Neon hero experience** — new landing page with layered gradients, feature highlights, and a live 3D HeroPlayground to mirror the PPO Bunny vibe.
-- **Glassmorphism dashboard** — reusable panel styling introduces frosted surfaces, accent lighting, and ambient overlays across control, telemetry, and environment panels.
-- **Playbook and checkpoints** — revamped copy, pastel info tiles, and luminous tables make curriculum notes and checkpoint management easier to scan.
-- **Metric clarity** — episode tables now use color-coded typography on soft glass backgrounds, keeping data legible in the dark theme.
-- **Theme palette** — global CSS variables were retuned for cyan-violet accents and smoothed surfaces that carry through every component.
+## Algorithm math straight from the code
+
+The training worker (`src/workers/trainer.worker.ts`) streams tensors into the TensorFlow.js agents in `src/algo`. Below are the exact expressions implemented in code, rewritten without the mojibake that crept into earlier inline comments.
+
+### PPO (src/algo/ppo_tfjs.ts)
+
+- **Temporal-difference residual**
+
+  \[
+    \delta_t = r_t + \gamma (1 - d_t)\, V(s_{t+1}) - V(s_t),
+  \]
+  where \(d_t \in \{0,1\}\) masks terminal transitions.
+
+- **Generalised Advantage Estimation**
+
+  \[
+    A_t = \delta_t + \gamma \lambda (1 - d_t)\, A_{t+1}, \qquad
+    R_t = A_t + V(s_t).
+  \]
+  The worker rolls these values backwards through each batch before shipping them to the agent.
+
+- **Policy objective**
+
+  \[
+    r_t(\theta) = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_{\text{old}}}(a_t \mid s_t)},
+  \]
+  \[
+    L^{\text{CLIP}}(\theta) = \mathbb{E}_t\Big[\min\big(r_t(\theta)A_t,\,
+      \operatorname{clip}(r_t(\theta), 1-\varepsilon, 1+\varepsilon)A_t\big)\Big].
+  \]
+  The combined loss inside `trainFromRollout` is
+  \[
+    L(\theta) = -L^{\text{CLIP}}(\theta)
+      + c_v \|R_t - V_\theta(s_t)\|_2^2
+      - c_{\text{ent}}\,\mathcal{H}[\pi_\theta(\cdot\mid s_t)].
+  \]
+  When `clipValueLoss` is enabled we apply the same clipping trick to the critic:
+  \(V^{\text{clip}} = V_{\text{old}} + \operatorname{clip}(V_\theta - V_{\text{old}}, -\varepsilon, \varepsilon)\).
+
+- **Stability tricks**
+
+  Advantages are normalised, gradients are clipped to `maxGradNorm`, and the approximate KL between old and new policies is monitored each epoch so `targetKL` can trigger early stopping.
+
+### DQN (src/algo/dqn_tfjs.ts)
+
+- **Target network**
+
+  Every `targetUpdateFrequency` steps the online weights \(\theta\) are copied into the frozen target network \(\theta^-\).
+
+- **Bellman target**
+
+  \[
+    y_t = r_t + \gamma (1 - d_t)\, \max_{a'} Q_{\theta^-}(s_{t+1}, a').
+  \]
+  Terminal transitions zero out the bootstrapped term via \((1 - d_t)\).
+
+- **Loss**
+
+  \[
+    L(\theta) = \mathbb{E}\big[(y_t - Q_\theta(s_t, a_t))^2\big],
+  \]
+  implemented with `tf.losses.meanSquaredError` during the optimiser step.
+
+- **Exploration**
+
+  Actions follow an \(\varepsilon\)-greedy schedule that decays linearly from `epsilonStart` to `epsilonFinal` across `epsilonDecaySteps`, while the replay buffer (size `bufferSize`) mirrors the original Nature DQN set-up.
 
 ## Recent additions
 
-- Diagnostics: loss, entropy, learning rate, and steps/sec surface live in the dashboard and historical tables.
-- Checkpoint suite: pin, rename, annotate, export, or delete checkpoints with updated metadata timelines.
-- Environment expansion: Mountain Car physics joins Pong, Maze, Tiny Grid, CartPole Lite, Flappy Lite, and Bunny Garden.
-- Reward sandbox hardening: AST guards block unsafe globals, complex scripts, and prototype escapes before execution.
-- JSON export: runs can be archived as `.playgroundrl.json` for easy diffing or sharing, alongside zipped bundles.
+- Inference-only loop: policy evaluation now runs in a dedicated worker with deterministic step timing and batched observations.
+- Simulation store: lightweight Zustand slice keeps frame deltas, speed controls, and worker lifecycle in sync.
+- ONNX adapter: type-safe helper normalises tensors, resolves argmax actions, and supports remote URLs or ArrayBuffer uploads.
+- Adaptive visuals: render quality slider toggles shadows/VFX so the playground shines on high-end rigs and thin laptops alike.
 
 ## Development notes
 

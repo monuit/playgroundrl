@@ -31,8 +31,8 @@ export default function Page() {
   }, [loadPolicy]);
 
   const initialAnimation = useSpring({
-    opacity: status === "ready" ? 1 : 0,
-    transform: status === "ready" ? "translateY(0)" : "translateY(100%)",
+    opacity: status === "ready" || status === "idle" || status === "error" ? 1 : 0,
+    transform: status === "ready" || status === "idle" || status === "error" ? "translateY(0)" : "translateY(100%)",
     config: webConfig.wobbly,
   });
 
@@ -77,11 +77,14 @@ export default function Page() {
         style={initialAnimation}
         className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 text-center"
       >
-        {status === "ready" && (
+        {(status === "ready" || status === "idle" || status === "error") && (
           <div className="pointer-events-auto">
             <h1 className="text-5xl font-bold italic tracking-tight text-white">PlaygroundRL</h1>
             <p className="text-sm text-slate-400">ONNX inference playground • No backend • No GPU</p>
-            <div className="flex flex-row gap-3">
+            {status === "error" && (
+              <p className="mt-2 text-xs text-amber-400">Policy not loaded • Using heuristic mode</p>
+            )}
+            <div className="flex flex-row gap-3 mt-4">
               <Button
                 className="flex flex-row items-center gap-2 border border-cyan-400/40 bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-500 text-white shadow-[0_20px_60px_-40px_rgba(56,189,248,0.8)] hover:from-cyan-400 hover:to-indigo-500"
                 onClick={() => void start()}

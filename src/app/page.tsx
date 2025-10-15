@@ -11,7 +11,7 @@ import { SimulationControls } from "@/ui/simulation/SimulationControls";
 import { SimulationMetrics } from "@/ui/simulation/SimulationMetrics";
 import { useSimulationStore } from "@/state/simulationStore";
 import { useShallow } from "zustand/react/shallow";
-import { getAllEnvironments, getEnvironmentName, getEnvironmentDescription } from "@/app/env";
+import { getAllEnvironments, getEnvironmentName, getEnvironmentDescription, getLevelConfig } from "@/app/env";
 import type { EnvironmentType } from "@/app/game/types_new";
 import { LevelType } from "@/app/game/types_new";
 
@@ -142,6 +142,8 @@ export default function Page() {
               const envName = getEnvironmentName(envType);
               const envDesc = getEnvironmentDescription(envType);
               const colors = ENV_COLOR_MAP[envType] || ENV_COLOR_MAP.bunny_garden;
+              const levelOne = getLevelConfig(envType, LevelType.LEVEL_1);
+              const levelTwo = getLevelConfig(envType, LevelType.LEVEL_2);
               
               return (
                 <Card
@@ -155,12 +157,31 @@ export default function Page() {
                       <Badge className={colors.badge} variant="outline">{envType.replace(/_/g, " ")}</Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-4">
                     <p className="text-xs text-slate-400">{envDesc}</p>
-                    <div className={`rounded-lg bg-gradient-to-br ${colors.accent} p-3 text-xs font-mono text-slate-300`}>
-                      <div>PPO + DQN</div>
-                      <div>Grid: 25×25</div>
-                      <div>L1 + L2</div>
+                    <div className="space-y-2">
+                      {[levelOne, levelTwo].map((levelConfig) => (
+                        <div
+                          key={levelConfig.id}
+                          className={`rounded-lg border border-white/10 bg-gradient-to-br ${colors.accent} p-3`}
+                        >
+                          <div className="flex items-center justify-between text-[0.7rem] text-slate-200">
+                            <span className="font-semibold uppercase tracking-[0.3em]">{levelConfig.id.replace("_", " ")}</span>
+                            <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 font-mono text-[0.65rem] text-slate-200">
+                              ★ {levelConfig.difficulty}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-[0.7rem] text-slate-300">
+                            {levelConfig.description}
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.65rem] font-mono text-slate-300">
+                            <span>{levelConfig.staticObstacles.length} static</span>
+                            <span>{levelConfig.movingObstacles?.length ?? 0} moving</span>
+                            <span>{levelConfig.startPositions.length} spawns</span>
+                            <span>{levelConfig.goalPositions.length} goals</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>

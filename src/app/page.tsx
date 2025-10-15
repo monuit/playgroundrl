@@ -12,6 +12,8 @@ import { SimulationMetrics } from "@/ui/simulation/SimulationMetrics";
 import { useSimulationStore } from "@/state/simulationStore";
 import { useShallow } from "zustand/react/shallow";
 import { getAllEnvironments, getEnvironmentName, getEnvironmentDescription } from "@/app/env";
+import type { EnvironmentType } from "@/app/game/types_new";
+import { LevelType } from "@/app/game/types_new";
 
 const STATUS_COPY: Record<string, string> = {
   idle: "Ready for launch — load an ONNX actor or start in heuristic mode.",
@@ -62,12 +64,14 @@ const ENV_COLOR_MAP: Record<string, { badge: string; accent: string; border: str
 export default function Page() {
   const [metricsReady, setMetricsReady] = useState(false);
 
-  const { status, start, message, policyReady } = useSimulationStore(
+  const { status, start, message, policyReady, setEnvironment, setLevel } = useSimulationStore(
     useShallow((state) => ({
       status: state.status,
       start: state.start,
       message: state.message,
       policyReady: state.policyReady,
+      setEnvironment: state.setEnvironment,
+      setLevel: state.setLevel,
     }))
   );
 
@@ -77,6 +81,11 @@ export default function Page() {
     }, 180);
     return () => window.clearTimeout(timer);
   }, []);
+
+  const handleEnvironmentSelect = (envType: EnvironmentType) => {
+    setEnvironment(envType);
+    setLevel(LevelType.LEVEL_1);
+  };
 
   const environments = getAllEnvironments();
   const statusLine = message ?? STATUS_COPY[status] ?? STATUS_COPY.idle;
@@ -135,7 +144,11 @@ export default function Page() {
               const colors = ENV_COLOR_MAP[envType] || ENV_COLOR_MAP.bunny_garden;
               
               return (
-                <Card key={envType} className={`group border transition-all ${colors.border} bg-white/5 backdrop-blur`}>
+                <Card
+                  key={envType}
+                  className={`group border transition-all cursor-pointer ${colors.border} bg-white/5 backdrop-blur hover:bg-white/10`}
+                  onClick={() => handleEnvironmentSelect(envType as EnvironmentType)}
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-base font-semibold text-slate-100">{envName}</CardTitle>

@@ -6,6 +6,7 @@ import { ContactShadows, Environment, Lightformer, OrbitControls } from "@react-
 import { useShallow } from "zustand/react/shallow";
 import { useSimulationStore } from "@/state/simulationStore";
 import { GridWorldScene } from "./GridWorldScene";
+import { EnvironmentRenderer } from "./EnvironmentRenderer";
 import { cn } from "@/lib/utils";
 
 interface SimulationCanvasProps {
@@ -13,9 +14,16 @@ interface SimulationCanvasProps {
 }
 
 export function SimulationCanvas({ className }: SimulationCanvasProps) {
-  const { frame, renderQuality } = useSimulationStore(
-    useShallow((state) => ({ frame: state.frame, renderQuality: state.renderQuality }))
+  const { frame, renderQuality, environment, level } = useSimulationStore(
+    useShallow((state) => ({
+      frame: state.frame,
+      renderQuality: state.renderQuality,
+      environment: state.environment,
+      level: state.level,
+    }))
   );
+
+  const hasEnvironmentSelected = environment !== null && level !== null;
 
   return (
     <div
@@ -44,7 +52,11 @@ export function SimulationCanvas({ className }: SimulationCanvasProps) {
           castShadow
         />
         <Suspense fallback={null}>
-          <GridWorldScene frame={frame} quality={renderQuality} />
+          {hasEnvironmentSelected ? (
+            <EnvironmentRenderer environment={environment} level={level} />
+          ) : (
+            <GridWorldScene frame={frame} quality={renderQuality} />
+          )}
         </Suspense>
         <ContactShadows
           position={[0, -0.01, 0]}

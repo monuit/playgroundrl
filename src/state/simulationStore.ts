@@ -4,6 +4,8 @@ import { create } from "zustand";
 import type { StoreApi } from "zustand";
 import type { Difficulty, GridRenderableState } from "@/lib/simulation/gridWorld";
 import type { SimulationCommand, SimulationEvent } from "@/workers/simulation.types";
+import type { EnvironmentType, LevelType } from "@/app/game/types_new";
+import { EnvironmentType as EnvEnum, LevelType as LevelEnum } from "@/app/game/types_new";
 
 const placeholderFrame: GridRenderableState = {
   size: 25,
@@ -28,6 +30,8 @@ const baseConfig = {
   agentCount: 8,
   speed: 1,
   renderQuality: "high" as "high" | "medium",
+  environment: EnvEnum.BUNNY_GARDEN as EnvironmentType,
+  level: LevelEnum.LEVEL_1 as LevelType,
 };
 
 const ensureWorker = (
@@ -119,6 +123,8 @@ export interface SimulationState {
   episode: number;
   totalReward: number;
   stepsPerSecond: number;
+  environment: EnvironmentType;
+  level: LevelType;
   lastUpdated?: number;
   loadPolicy(url?: string): Promise<void>;
   loadPolicyFromFile(file: File): Promise<void>;
@@ -131,6 +137,8 @@ export interface SimulationState {
   setAgentCount(count: number): void;
   setSpeed(speed: number): void;
   toggleQuality(): void;
+  setEnvironment(environment: EnvironmentType): void;
+  setLevel(level: LevelType): void;
 }
 
 export const useSimulationStore = create<SimulationState>((set, get) => {
@@ -150,6 +158,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => {
     episode: 1,
     totalReward: 0,
     stepsPerSecond: 0,
+    environment: baseConfig.environment,
+    level: baseConfig.level,
     loadPolicy: async (url = "/models/policy.onnx") => {
       set({ status: "loading", message: "Loading policy…" });
       sendCommand({ type: "loadPolicy", payload: { url } }, set, get);
@@ -234,6 +244,12 @@ export const useSimulationStore = create<SimulationState>((set, get) => {
       set((state) => ({
         renderQuality: state.renderQuality === "high" ? "medium" : "high",
       }));
+    },
+    setEnvironment: (environment) => {
+      set({ environment, level: LevelEnum.LEVEL_1 });
+    },
+    setLevel: (level) => {
+      set({ level });
     },
   };
 });

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useSimulationStore } from "@/state/simulationStore";
+import { EnvironmentSelector } from "./EnvironmentSelector";
 import type { Difficulty } from "@/lib/simulation/gridWorld";
 
 const DIFFICULTY_OPTIONS = [
@@ -35,6 +36,8 @@ export function SimulationControls() {
       speed: store.speed,
       policyReady: store.policyReady,
       renderQuality: store.renderQuality,
+      environment: store.environment,
+      level: store.level,
       start: store.start,
       pause: store.pause,
       resume: store.resume,
@@ -44,6 +47,8 @@ export function SimulationControls() {
       setAgentCount: store.setAgentCount,
       setSpeed: store.setSpeed,
       toggleQuality: store.toggleQuality,
+      setEnvironment: store.setEnvironment,
+      setLevel: store.setLevel,
       loadPolicy: store.loadPolicy,
       loadPolicyFromFile: store.loadPolicyFromFile,
     }))
@@ -84,6 +89,13 @@ export function SimulationControls() {
         {state.message ? <p className="text-sm text-slate-300">{state.message}</p> : null}
       </CardHeader>
       <CardContent className="relative space-y-6">
+        <EnvironmentSelector
+          selectedEnv={state.environment}
+          selectedLevel={state.level}
+          onEnvChange={(env) => state.setEnvironment(env)}
+          onLevelChange={(level) => state.setLevel(level)}
+        />
+
         <section className="space-y-3">
           <Label className="text-xs uppercase tracking-[0.35em] text-slate-400">Difficulty</Label>
           <Select value={state.difficulty} onValueChange={(value) => state.setDifficulty(value as Difficulty)}>

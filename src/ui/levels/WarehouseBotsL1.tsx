@@ -68,3 +68,5 @@ export function WarehouseBotsL1({ level }: WarehouseBotsL1Props) {
     </Canvas>
   );
 }
+
+export { WarehouseBotsL1Content as WarehouseBotsL1Scene };

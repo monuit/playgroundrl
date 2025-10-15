@@ -1,18 +1,20 @@
 'use client';
 
-import { useMemo } from 'react';
+import { ComponentType, useMemo } from 'react';
 import type { EnvironmentType, LevelType, LevelConfig } from '@/app/game/types_new';
 import { EnvironmentType as EnvEnum, LevelType as LevelEnum } from '@/app/game/types_new';
-import { BunnyGardenL1 } from '@/ui/levels/BunnyGardenL1';
-import { BunnyGardenL2 } from '@/ui/levels/BunnyGardenL2';
-import { SwarmDronesL1 } from '@/ui/levels/SwarmDronesL1';
-import { SwarmDronesL2 } from '@/ui/levels/SwarmDronesL2';
-import { ReefGuardiansL1 } from '@/ui/levels/ReefGuardiansL1';
-import { ReefGuardiansL2 } from '@/ui/levels/ReefGuardiansL2';
-import { WarehouseBotsL1 } from '@/ui/levels/WarehouseBotsL1';
-import { WarehouseBotsL2 } from '@/ui/levels/WarehouseBotsL2';
-import { SnowplowFleetL1 } from '@/ui/levels/SnowplowFleetL1';
-import { SnowplowFleetL2 } from '@/ui/levels/SnowplowFleetL2';
+import { BunnyGardenL1Scene } from '@/ui/levels/BunnyGardenL1';
+import { BunnyGardenL2Scene } from '@/ui/levels/BunnyGardenL2';
+import { SwarmDronesL1Scene } from '@/ui/levels/SwarmDronesL1';
+import { SwarmDronesL2Scene } from '@/ui/levels/SwarmDronesL2';
+import { ReefGuardiansL1Scene } from '@/ui/levels/ReefGuardiansL1';
+import { ReefGuardiansL2Scene } from '@/ui/levels/ReefGuardiansL2';
+import { WarehouseBotsL1Scene } from '@/ui/levels/WarehouseBotsL1';
+import { WarehouseBotsL2Scene } from '@/ui/levels/WarehouseBotsL2';
+import { SnowplowFleetL1Scene } from '@/ui/levels/SnowplowFleetL1';
+import { SnowplowFleetL2Scene } from '@/ui/levels/SnowplowFleetL2';
+
+type LevelSceneComponent = ComponentType<{ level: LevelConfig }>;
 
 interface EnvironmentRendererProps {
   environment: EnvironmentType | null;
@@ -199,33 +201,38 @@ const DEFAULT_LEVEL_CONFIGS: Record<EnvironmentType, Record<LevelType, LevelConf
 };
 
 export function EnvironmentRenderer({ environment, level }: EnvironmentRendererProps) {
-  const { Component, levelConfig } = useMemo(() => {
-    if (!environment || !level) return { Component: null, levelConfig: null };
+  const { SceneComponent, levelConfig } = useMemo<{
+    SceneComponent: LevelSceneComponent | null;
+    levelConfig: LevelConfig | null;
+  }>(() => {
+    if (!environment || !level) {
+      return { SceneComponent: null, levelConfig: null };
+    }
 
-    let Comp = null;
+    let Scene: LevelSceneComponent | null = null;
     switch (environment) {
       case EnvEnum.BUNNY_GARDEN:
-        Comp = level === LevelEnum.LEVEL_1 ? BunnyGardenL1 : BunnyGardenL2;
+        Scene = level === LevelEnum.LEVEL_1 ? BunnyGardenL1Scene : BunnyGardenL2Scene;
         break;
       case EnvEnum.SWARM_DRONES:
-        Comp = level === LevelEnum.LEVEL_1 ? SwarmDronesL1 : SwarmDronesL2;
+        Scene = level === LevelEnum.LEVEL_1 ? SwarmDronesL1Scene : SwarmDronesL2Scene;
         break;
       case EnvEnum.REEF_GUARDIANS:
-        Comp = level === LevelEnum.LEVEL_1 ? ReefGuardiansL1 : ReefGuardiansL2;
+        Scene = level === LevelEnum.LEVEL_1 ? ReefGuardiansL1Scene : ReefGuardiansL2Scene;
         break;
       case EnvEnum.WAREHOUSE_BOTS:
-        Comp = level === LevelEnum.LEVEL_1 ? WarehouseBotsL1 : WarehouseBotsL2;
+        Scene = level === LevelEnum.LEVEL_1 ? WarehouseBotsL1Scene : WarehouseBotsL2Scene;
         break;
       case EnvEnum.SNOWPLOW_FLEET:
-        Comp = level === LevelEnum.LEVEL_1 ? SnowplowFleetL1 : SnowplowFleetL2;
+        Scene = level === LevelEnum.LEVEL_1 ? SnowplowFleetL1Scene : SnowplowFleetL2Scene;
         break;
     }
 
     const config = DEFAULT_LEVEL_CONFIGS[environment]?.[level] || null;
-    return { Component: Comp, levelConfig: config };
+    return { SceneComponent: Scene, levelConfig: config };
   }, [environment, level]);
 
-  if (!Component || !levelConfig) {
+  if (!SceneComponent || !levelConfig) {
     return (
       <div className="flex items-center justify-center w-full h-full text-slate-300">
         Select an environment and level to begin
@@ -233,5 +240,5 @@ export function EnvironmentRenderer({ environment, level }: EnvironmentRendererP
     );
   }
 
-  return <Component level={levelConfig} />;
+  return <SceneComponent level={levelConfig} />;
 }

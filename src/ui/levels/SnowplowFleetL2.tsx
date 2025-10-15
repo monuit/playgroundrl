@@ -96,3 +96,5 @@ export function SnowplowFleetL2({ level }: SnowplowFleetL2Props) {
     </Canvas>
   );
 }
+
+export { SnowplowFleetL2Content as SnowplowFleetL2Scene };

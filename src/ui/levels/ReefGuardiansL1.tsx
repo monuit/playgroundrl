@@ -69,3 +69,5 @@ export function ReefGuardiansL1({ level }: ReefGuardiansL1Props) {
     </Canvas>
   );
 }
+
+export { ReefGuardiansL1Content as ReefGuardiansL1Scene };

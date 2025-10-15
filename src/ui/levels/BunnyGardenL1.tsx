@@ -79,3 +79,5 @@ export function BunnyGardenL1({ level }: BunnyGardenL1Props) {
     </Canvas>
   );
 }
+
+export { BunnyGardenL1Content as BunnyGardenL1Scene };

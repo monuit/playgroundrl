@@ -68,3 +68,5 @@ export function SwarmDronesL1({ level }: SwarmDronesL1Props) {
     </Canvas>
   );
 }
+
+export { SwarmDronesL1Content as SwarmDronesL1Scene };

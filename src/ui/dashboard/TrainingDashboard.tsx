@@ -74,7 +74,7 @@ export function TrainingDashboard() {
   return (
     <section className="relative isolate min-h-screen overflow-hidden">
       <div className="absolute inset-0">
-        <SimulationCanvas className="pointer-events-auto" />
+  <SimulationCanvas className="pointer-events-auto min-h-screen rounded-none border-0 shadow-none" />
       </div>
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(8,47,73,0.35),transparent_75%)]"

@@ -20,7 +20,7 @@ export function SimulationCanvas({ className }: SimulationCanvasProps) {
   return (
     <div
       className={cn(
-        "h-full min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_center,_rgba(12,74,110,0.25),rgba(2,6,23,0.95))] shadow-[0_40px_160px_-60px_rgba(59,130,246,0.55)]",
+        "relative h-full min-h-[420px] w-full overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_center,_rgba(12,74,110,0.25),rgba(2,6,23,0.95))] shadow-[0_40px_160px_-60px_rgba(59,130,246,0.55)]",
         className
       )}
     >

@@ -1,310 +1,227 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Html, OrbitControls, Sparkles, useCursor } from "@react-three/drei";
-import * as THREE from "three";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { HeroScene } from "@/ui/hero/HeroScene";
+import { GALLERY_ENTRIES } from "@/ui/env/EnvironmentGallery";
+import { cn } from "@/lib/utils";
 
-type Level = {
-  id: number;
-  name: string;
-  description: string;
-  position: [number, number, number];
+interface HeroVisualConfig {
   accent: string;
-};
+  path: Array<{ x: number; z: number }>;
+  highlights: Array<{ x: number; z: number }>;
+}
 
-const LEVELS: Level[] = [
-  {
-    id: 0,
-    name: "Level 1",
-    description: "Gentle meadow with sparse carrots and a forgiving timer.",
-    position: [-18, 2.5, -12],
+const HERO_VISUALS: Record<string, HeroVisualConfig> = {
+  "swarm-drones": {
     accent: "#38bdf8",
+    path: [
+      { x: -3.25, z: -2.75 },
+      { x: -1.25, z: -1.25 },
+      { x: 0, z: 0.5 },
+      { x: 1.75, z: 1.75 },
+      { x: 3.2, z: 0.25 },
+      { x: 1.1, z: -2.1 },
+    ],
+    highlights: [
+      { x: -2.5, z: -2.5 },
+      { x: 0, z: 0 },
+      { x: 2.6, z: 1.8 },
+    ],
   },
-  {
-    id: 1,
-    name: "Level 2",
-    description: "Maze-like hedges demand smarter exploration.",
-    position: [0, 2.5, 18],
-    accent: "#a855f7",
+  "reef-guardians": {
+    accent: "#22d3ee",
+    path: [
+      { x: -2.4, z: 2.9 },
+      { x: -1.1, z: 1.1 },
+      { x: 0.8, z: -0.6 },
+      { x: 1.8, z: -1.9 },
+      { x: 3.1, z: -0.25 },
+      { x: 1.6, z: 1.8 },
+    ],
+    highlights: [
+      { x: -1.5, z: 2.2 },
+      { x: 0.5, z: -0.9 },
+      { x: 2.5, z: 0.9 },
+    ],
   },
-  {
-    id: 2,
-    name: "Level 3",
-    description: "Long-horizon hunt with rare, high-value rewards.",
-    position: [22, 2.5, -4],
-    accent: "#facc15",
+  "warehouse-bots": {
+    accent: "#60a5fa",
+    path: [
+      { x: -3, z: -1.8 },
+      { x: -1.8, z: 1.2 },
+      { x: 0, z: 2.4 },
+      { x: 1.8, z: 1.2 },
+      { x: 3.2, z: -0.6 },
+      { x: 1.6, z: -2.2 },
+    ],
+    highlights: [
+      { x: -2.4, z: -1.5 },
+      { x: 0, z: 1.9 },
+      { x: 2.6, z: -0.3 },
+    ],
   },
-];
-
-const BUNNY_COUNT = 28;
-
-type BunnyNode = {
-  radius: number;
-  speed: number;
-  offset: number;
-  height: number;
+  "snowplow-fleet": {
+    accent: "#a5b4fc",
+    path: [
+      { x: -3.2, z: 0.6 },
+      { x: -1.2, z: 1.9 },
+      { x: 0.5, z: 1.5 },
+      { x: 1.8, z: 0.4 },
+      { x: 3.2, z: -0.8 },
+      { x: 0.8, z: -1.6 },
+    ],
+    highlights: [
+      { x: -2.2, z: 0.8 },
+      { x: 0.6, z: 1.2 },
+      { x: 2.6, z: -1 },
+    ],
+  },
 };
 
-type RewardOrb = {
-  offset: number;
-  radius: number;
-  speed: number;
-  center: [number, number, number];
+const FALLBACK_VISUAL: HeroVisualConfig = {
+  accent: "#38bdf8",
+  path: [
+    { x: -2, z: -2 },
+    { x: -1, z: 0 },
+    { x: 0.5, z: 1.2 },
+    { x: 2, z: 0 },
+    { x: 0.5, z: -1.5 },
+  ],
+  highlights: [
+    { x: -1.5, z: -1.5 },
+    { x: 0.2, z: 0.4 },
+  ],
 };
 
-const buildBunnyNodes = () => {
-  const nodes: BunnyNode[] = [];
-  for (let i = 0; i < BUNNY_COUNT; i += 1) {
-    nodes.push({
-      radius: 6 + Math.random() * 22,
-      speed: 0.3 + Math.random() * 0.8,
-      offset: Math.random() * Math.PI * 2,
-      height: 1.2 + Math.random() * 2.8,
-    });
-  }
-  return nodes;
-};
-
-const buildRewardOrbs = () =>
-  LEVELS.map(
-    (level): RewardOrb => ({
-      offset: Math.random() * Math.PI * 2,
-      radius: 3 + Math.random() * 2,
-      speed: 0.5 + Math.random() * 0.4,
-      center: [level.position[0] * 0.9, 2.4, level.position[2] * 0.9],
-    }),
-  );
-
-const BunnySwarm = ({ activeLevel }: { activeLevel: number }) => {
-  const swarm = useRef<THREE.InstancedMesh>(null);
-  const temp = useMemo(() => new THREE.Object3D(), []);
-  const nodes = useMemo(() => buildBunnyNodes(), []);
-
-  useFrame(({ clock }) => {
-    if (!swarm.current) {
-      return;
-    }
-    const time = clock.getElapsedTime();
-    nodes.forEach((node, index) => {
-      const targetLevel = LEVELS[(index + activeLevel) % LEVELS.length];
-      const baseAngle = time * node.speed + node.offset;
-      const radius = node.radius + Math.sin(baseAngle * 0.6) * 2;
-      const x = Math.cos(baseAngle) * radius + targetLevel.position[0] * 0.2;
-      const z = Math.sin(baseAngle) * radius + targetLevel.position[2] * 0.2;
-      const y = 1 + Math.sin(baseAngle * 1.8) * node.height;
-
-      temp.position.set(x, y, z);
-      temp.rotation.set(Math.sin(baseAngle) * 0.6, baseAngle, Math.cos(baseAngle) * 0.3);
-      const pulse = 0.6 + (index % 3 === 0 ? 0.35 : 0.2) + Math.sin(baseAngle * 2) * 0.08;
-      temp.scale.setScalar(pulse);
-      temp.updateMatrix();
-      swarm.current!.setMatrixAt(index, temp.matrix);
-    });
-    swarm.current.instanceMatrix.needsUpdate = true;
-  });
-
-  return (
-    <instancedMesh ref={swarm} args={[undefined, undefined, nodes.length]}>
-      <octahedronGeometry args={[0.9, 0]} />
-      <meshStandardMaterial color="#f0f9ff" emissive="#38bdf8" emissiveIntensity={0.45} />
-    </instancedMesh>
-  );
-};
-
-const RewardRing = () => {
-  const group = useRef<THREE.Group>(null);
-  const rewards = useMemo(() => buildRewardOrbs(), []);
-
-  useFrame(({ clock }) => {
-    const time = clock.getElapsedTime();
-    if (!group.current) {
-      return;
-    }
-    rewards.forEach((reward, index) => {
-      const mesh = group.current!.children[index];
-      const angle = time * reward.speed + reward.offset;
-      const radius = reward.radius + Math.sin(angle * 0.5) * 1.8;
-      mesh.position.set(
-        reward.center[0] + Math.cos(angle) * radius,
-        reward.center[1] + Math.sin(angle * 2) * 1.2,
-        reward.center[2] + Math.sin(angle) * radius,
-      );
-      mesh.rotation.y = angle;
-    });
-  });
-
-  return (
-    <group ref={group}>
-      {rewards.map((reward, index) => (
-        <mesh key={index}>
-          <torusGeometry args={[1.2, 0.32, 16, 48]} />
-          <meshStandardMaterial color="#f472b6" emissive="#f472b6" emissiveIntensity={0.5} />
-        </mesh>
-      ))}
-    </group>
-  );
-};
-
-const LevelMarker = ({
-  level,
-  active,
-  onSelect,
-}: {
-  level: Level;
-  active: boolean;
-  onSelect: (id: number) => void;
-}) => {
-  const ref = useRef<THREE.Group>(null);
-  const [hovered, setHovered] = useState(false);
-  useCursor(hovered);
-
-  useFrame(({ clock }) => {
-    if (!ref.current) {
-      return;
-    }
-    const t = clock.getElapsedTime();
-    const bob = Math.sin(t * 1.5 + level.id) * 0.6;
-    ref.current.position.set(level.position[0], level.position[1] + bob, level.position[2]);
-    const targetScale = active ? 1.2 : 1;
-    const scale = THREE.MathUtils.lerp(ref.current.scale.x, targetScale, 0.08);
-    ref.current.scale.setScalar(scale);
-  });
-
-  return (
-    <group
-      ref={ref}
-      onPointerEnter={(event) => {
-        event.stopPropagation();
-        setHovered(true);
-      }}
-      onPointerLeave={(event) => {
-        event.stopPropagation();
-        setHovered(false);
-      }}
-      onPointerDown={(event) => {
-        event.stopPropagation();
-        onSelect(level.id);
-      }}
-    >
-      <mesh castShadow>
-        <cylinderGeometry args={[1.6, 1.8, 3, 24]} />
-        <meshStandardMaterial
-          color={level.accent}
-          emissive={level.accent}
-          emissiveIntensity={active ? 0.8 : 0.4}
-        />
-      </mesh>
-      <mesh position={[0, 2.2, 0]} castShadow>
-        <sphereGeometry args={[1, 24, 24]} />
-        <meshStandardMaterial color="#f8fafc" emissive="#f8fafc" emissiveIntensity={0.6} />
-      </mesh>
-      <Html position={[0, 3.6, 0]} center>
-        <div className="rounded-full border border-white/10 bg-slate-950/80 px-3 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.35em] text-slate-100 shadow-[0_10px_40px_-24px_rgba(56,189,248,0.8)] backdrop-blur">
-          {level.name}
-        </div>
-      </Html>
-    </group>
-  );
-};
-
-const Board = () => {
-  const grid = useMemo(() => {
-    const helper = new THREE.GridHelper(64, 32, "#1e3a8a", "#1e40af");
-    const material = helper.material as THREE.Material & { opacity: number; transparent: boolean };
-    material.opacity = 0.35;
-    material.transparent = true;
-    return helper;
-  }, []);
-
-  return (
-    <group rotation={[-Math.PI / 2, 0, 0]}>
-      <mesh receiveShadow position={[0, -0.35, 0]}>
-        <boxGeometry args={[70, 2, 70]} />
-        <meshStandardMaterial color="#0f172a" />
-      </mesh>
-      <mesh position={[0, 0, 0]} receiveShadow>
-        <planeGeometry args={[64, 64, 32, 32]} />
-        <meshStandardMaterial color="#111c33" wireframe />
-      </mesh>
-      <primitive object={grid} position={[0, 0.02, 0]} />
-      <mesh position={[0, 0.2, 0]} receiveShadow>
-        <planeGeometry args={[64, 64]} />
-        <meshStandardMaterial color="#1e293b" opacity={0.35} transparent />
-      </mesh>
-    </group>
-  );
-};
-
-const PlaygroundScene = ({
-  activeLevel,
-  onSelect,
-}: {
-  activeLevel: number;
-  onSelect: (id: number) => void;
-}) => (
-  <group>
-    <Sparkles
-      count={240}
-      speed={0.4}
-      size={6}
-      scale={[80, 50, 80]}
-      opacity={0.28}
-      color="#38bdf8"
-    />
-    <Board />
-    <RewardRing />
-    <BunnySwarm activeLevel={activeLevel} />
-    {LEVELS.map((level) => (
-      <LevelMarker key={level.id} level={level} active={level.id === activeLevel} onSelect={onSelect} />
-    ))}
-    <ambientLight intensity={0.65} color="#cbd5f5" />
-    <directionalLight position={[20, 40, 22]} intensity={1.4} castShadow color="#a855f7" />
-    <directionalLight position={[-32, 36, -28]} intensity={0.9} color="#38bdf8" />
-  </group>
-);
-
-const PlaygroundCanvas = ({
-  activeLevel,
-  onSelect,
-}: {
-  activeLevel: number;
-  onSelect: (id: number) => void;
-}) => (
-  <Canvas camera={{ position: [0, 40, 76], fov: 36 }} shadows>
-    <color attach="background" args={["#020617"]} />
-    <PlaygroundScene activeLevel={activeLevel} onSelect={onSelect} />
-    <OrbitControls enablePan={false} enableZoom={false} minPolarAngle={Math.PI / 3} maxPolarAngle={Math.PI / 3} />
-  </Canvas>
-);
+const HERO_SCENARIOS = GALLERY_ENTRIES.map((entry) => ({
+  id: entry.id,
+  name: entry.name,
+  ...(HERO_VISUALS[entry.id] ?? FALLBACK_VISUAL),
+}));
 
 export const HeroPlayground = () => {
-  const [activeLevel, setActiveLevel] = useState<number>(0);
-  const level = LEVELS.find((entry) => entry.id === activeLevel) ?? LEVELS[0];
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [running, setRunning] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
+  const restartTimer = useRef<number | null>(null);
+
+  const scenario = HERO_SCENARIOS[activeIndex];
+
+  useEffect(() => {
+    if (restartTimer.current !== null) {
+      window.clearTimeout(restartTimer.current);
+      restartTimer.current = null;
+    }
+    setRunning(false);
+    setResetSignal((value) => value + 1);
+    restartTimer.current = window.setTimeout(() => {
+      setRunning(true);
+      restartTimer.current = null;
+    }, 480);
+    return () => {
+      if (restartTimer.current !== null) {
+        window.clearTimeout(restartTimer.current);
+        restartTimer.current = null;
+      }
+    };
+  }, [scenario.id]);
+
+  useEffect(() => {
+    return () => {
+      if (restartTimer.current !== null) {
+        window.clearTimeout(restartTimer.current);
+        restartTimer.current = null;
+      }
+    };
+  }, []);
+
+  const handleCycle = (direction: 1 | -1) => {
+    setActiveIndex((prev) => (prev + direction + HERO_SCENARIOS.length) % HERO_SCENARIOS.length);
+  };
+
+  const handleRestart = () => {
+    if (restartTimer.current !== null) {
+      window.clearTimeout(restartTimer.current);
+      restartTimer.current = null;
+    }
+    setRunning(false);
+    setResetSignal((value) => value + 1);
+    restartTimer.current = window.setTimeout(() => {
+      setRunning(true);
+      restartTimer.current = null;
+    }, 160);
+  };
+
+  const prevIndex = (activeIndex + HERO_SCENARIOS.length - 1) % HERO_SCENARIOS.length;
+  const nextIndex = (activeIndex + 1) % HERO_SCENARIOS.length;
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-[0_0_120px_-38px_rgba(56,189,248,0.7)]">
-      <PlaygroundCanvas activeLevel={activeLevel} onSelect={setActiveLevel} />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-3 p-4">
-        <div className="flex items-center justify-center gap-2">
-          {LEVELS.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              className={`pointer-events-auto rounded-full border px-3 py-1 text-[0.6rem] uppercase tracking-[0.35em] transition ${
-                entry.id === activeLevel
-                  ? "border-cyan-400/60 bg-cyan-500/20 text-white"
-                  : "border-white/10 bg-white/5 text-slate-300 hover:border-cyan-400/50 hover:text-white"
-              }`}
-              onClick={() => setActiveLevel(entry.id)}
-            >
-              {entry.name}
-            </button>
-          ))}
+    <div className="relative h-full w-full overflow-hidden">
+      <HeroScene
+        accent={scenario.accent}
+        path={scenario.path}
+        highlights={scenario.highlights}
+        running={running}
+        resetSignal={resetSignal}
+        className="absolute inset-0"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(129,140,248,0.12),transparent_65%)]" />
+
+      <div className="pointer-events-auto absolute top-10 left-1/2 flex -translate-x-1/2 items-center gap-4">
+        {HERO_SCENARIOS.map((item, index) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-label={item.name}
+            onClick={() => setActiveIndex(index)}
+            className={cn(
+              "relative size-3 rounded-full border border-white/30 transition md:size-4",
+              index === activeIndex ? "scale-150 border-white/60 shadow-[0_0_0_6px_rgba(15,23,42,0.45)]" : "opacity-65 hover:opacity-100"
+            )}
+            style={{ backgroundColor: item.accent }}
+          >
+            <span className="sr-only">{item.name}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="pointer-events-auto absolute bottom-16 left-1/2 flex -translate-x-1/2 items-center gap-6">
+        <Button
+          size="icon"
+          variant="outline"
+          className="rounded-full border-white/30 bg-white/10 text-white hover:border-white/60 hover:bg-white/20"
+          onClick={() => handleCycle(-1)}
+          aria-label={`Previous arena: ${HERO_SCENARIOS[prevIndex].name}`}
+        >
+          <ChevronLeft className="size-5" />
+        </Button>
+        <div className="rounded-full border border-white/25 bg-white/10 px-6 py-2 text-xs uppercase tracking-[0.45em] text-slate-100">
+          {scenario.name}
         </div>
-        <div className="pointer-events-auto rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-center text-xs text-slate-200 backdrop-blur">
-          {level.description}
-        </div>
+        <Button
+          size="icon"
+          variant="outline"
+          className="rounded-full border-white/30 bg-white/10 text-white hover:border-white/60 hover:bg-white/20"
+          onClick={() => handleCycle(1)}
+          aria-label={`Next arena: ${HERO_SCENARIOS[nextIndex].name}`}
+        >
+          <ChevronRight className="size-5" />
+        </Button>
+      </div>
+
+      <div className="pointer-events-auto absolute bottom-16 right-16 flex items-center gap-3">
+        <Button
+          size="icon"
+          variant="outline"
+          className="rounded-full border-white/30 bg-white/10 text-white hover:border-white/60 hover:bg-white/20"
+          onClick={handleRestart}
+          aria-label="Replay sequence"
+        >
+          <RotateCcw className="size-5" />
+        </Button>
       </div>
     </div>
   );

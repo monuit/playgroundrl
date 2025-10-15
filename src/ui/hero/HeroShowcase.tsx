@@ -2,13 +2,19 @@
 
 import dynamic from "next/dynamic";
 
+import { cn } from "@/lib/utils";
+
 const HeroPlayground = dynamic(() => import("@/ui/hero/HeroPlayground"), {
   ssr: false,
 });
 
-export function HeroShowcase() {
+interface HeroShowcaseProps {
+  className?: string;
+}
+
+export function HeroShowcase({ className }: HeroShowcaseProps) {
   return (
-    <div className="h-[420px] w-full">
+    <div className={cn("h-[420px] w-full", className)}>
       <HeroPlayground />
     </div>
   );

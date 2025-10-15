@@ -79,9 +79,10 @@ export default function DocsPage() {
               <h2 className="text-xl font-semibold">Policy Lab Overview</h2>
             </div>
             <p className="text-sm text-slate-300">
-              PlaygroundRL now ships as an inference-first playground. A deterministic grid world streams observations to a
-              dedicated worker which feeds the ONNX Runtime policy. Everything happens in your browser—no GPU, no
-              backend, just WebAssembly, WebGL, and React Three Fiber.
+              PlaygroundRL now ships as an inference-first playground stretching across Swarm Drones, Reef Guardians,
+              Warehouse Bots, and Snowplow Fleet arenas. Each simulation streams observations to a dedicated worker which
+              feeds the ONNX Runtime policy. Everything happens in your browser—no GPU, no backend, just WebAssembly,
+              WebGL, and React Three Fiber.
             </p>
             <section className="space-y-4">
               <h3 className="text-sm font-semibold uppercase tracking-[0.4em] text-slate-400">Lab quick sheet</h3>

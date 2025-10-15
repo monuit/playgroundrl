@@ -29,12 +29,12 @@ const SECTIONS: Section[] = [
     content: (
       <ul className="ml-4 list-disc space-y-2 text-sm text-slate-300">
         <li>
-          Shared feature encoder (2 x 256 hidden units, GELU) feeds both heads to ground the agent in bunny telemetry.
+          Shared feature encoder (2 x 256 hidden units, GELU) feeds both heads using swarm telemetry from the primary drone and its wingmates.
         </li>
         <li>
-          Actor head outputs an 8-way categorical policy; critic head produces a single scalar value estimate.
+          Actor head outputs a 5-way categorical policy aligned with swarm directives; critic head produces a single scalar value estimate.
         </li>
-        <li>Orthogonal weight initialisation keeps the policy expressive without destabilising value gradients.</li>
+        <li>Orthogonal weight initialisation keeps manoeuvres responsive without destabilising value gradients.</li>
       </ul>
     ),
   },
@@ -46,10 +46,10 @@ const SECTIONS: Section[] = [
     content: (
       <ul className="ml-4 list-disc space-y-2 text-sm text-slate-300">
         <li>Rollout horizon of 1,024 steps balances signal richness with GPU-friendly batch sizes.</li>
-        <li>Lambda = 0.95 softly discounts older advantages while preserving momentum toward radiant carrots.</li>
+        <li>Lambda = 0.95 softly discounts older advantages while preserving momentum while the swarm maps new sectors.</li>
         <li>
-          Baseline value bootstrapping reduces variance, so the bunny receives consistent guidance even when exploring
-          mazes.
+          Baseline value bootstrapping reduces variance so the flight lead gets consistent guidance even when surveying
+          cluttered skylanes.
         </li>
       </ul>
     ),
@@ -61,13 +61,11 @@ const SECTIONS: Section[] = [
     summary: "Four gradient passes per rollout make PPO data efficient without overfitting.",
     content: (
       <ul className="ml-4 list-disc space-y-2 text-sm text-slate-300">
-        <li>
-          Trajectories are shuffled into 256-step minibatches, giving four SGD updates per rollout (1,024 / 256).
-        </li>
+        <li>Trajectories are shuffled into 256-step minibatches, giving four SGD updates per rollout (1,024 / 256).</li>
         <li>
           Adam optimiser with learning rate 2.5e-4 and gradient clipping at 0.5 protects against exploding updates.
         </li>
-        <li>Entropy bonus of 0.01 nudges the policy to keep scouting new glades when carrots shift.</li>
+        <li>Entropy bonus of 0.01 nudges the policy to keep scouting fresh air lanes when sensor cues change.</li>
       </ul>
     ),
   },
@@ -80,7 +78,7 @@ const SECTIONS: Section[] = [
       <ul className="ml-4 list-disc space-y-2 text-sm text-slate-300">
         <li>The surrogate loss uses importance sampling ratios bounded to [0.88, 1.12] per step.</li>
         <li>Value-function loss carries a 0.5 coefficient, harmonising reward fitting with policy improvement.</li>
-        <li>DQN remains available for ablations--swap algorithms in the console to contrast exploration styles.</li>
+        <li>DQN remains available for ablations—swap algorithms in the console to contrast exploration styles.</li>
       </ul>
     ),
   },
@@ -121,12 +119,12 @@ export function LearningPlaybook() {
             PPO focus
           </Badge>
           <span className="text-xs uppercase tracking-[0.35em] text-slate-400">
-            Lumen Valley playbook
+            Swarm Ops playbook
           </span>
         </div>
         <CardTitle className="text-2xl font-semibold text-white">Curriculum guide</CardTitle>
         <CardDescription className="text-slate-300">
-          Understand how the actor-critic pair slices through glowing groves and tight labyrinths.
+          Understand how the actor-critic pair keeps a drone squadron coordinated across sprawling scouting missions.
         </CardDescription>
         <div className="flex flex-wrap gap-2">
           {SECTIONS.map((section) => (

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { TrainerClient } from "@/lib/trainerClient";
 import type { TrainerEvent } from "@/workers/types";
 import { ALGORITHM_LOOKUP } from "@/algo";
-import { ENV_LOOKUP } from "@/env";
+import { ENV_LOOKUP, ENVIRONMENTS } from "@/env";
 import {
   addCheckpoint,
   appendMetric,
@@ -108,7 +108,10 @@ const mapCheckpoint = (record: CheckpointRecord): CheckpointSummary => ({
   updatedAt: record.updatedAt,
 });
 
+const DEFAULT_ENV_ID = ENVIRONMENTS[0]?.id ?? "swarm-drones";
+
 export const useTrainingStore = create<TrainingState>((set, get) => {
+  const fallbackEnvId = DEFAULT_ENV_ID;
   if (typeof window !== "undefined") {
     trainerClient.onEvent((event: TrainerEvent) => {
       switch (event.type) {
@@ -199,7 +202,7 @@ export const useTrainingStore = create<TrainingState>((set, get) => {
 
   return {
     runId: null,
-    envId: "lumen-bunny",
+    envId: fallbackEnvId,
     algoId: "ppo-tfjs",
     backend: "tfjs",
     status: "idle",
@@ -209,16 +212,17 @@ export const useTrainingStore = create<TrainingState>((set, get) => {
     currentObservation: undefined,
     currentMetadata: undefined,
     rewardSource:
-      "const carrotMomentum = metadata?.collected ? metadata.collected * 0.03 : 0;\nreturn reward + carrotMomentum;",
+      "const coverage = state.info?.coverage ?? 0;\nconst collisions = state.info?.collisions ?? 0;\nconst battery = state.info?.battery ?? 1;\nconst steps = state.info?.steps ?? 0;\nconst smoothing = Math.min(1, steps / 200);\nconst explorationBonus = coverage * 0.6 + smoothing * 0.25 - collisions * 0.02;\nconst batteryGuard = battery < 0.2 ? -0.1 : 0;\nreturn reward + explorationBonus + batteryGuard;",
     runs: [],
     checkpoints: [],
     lastError: undefined,
     client: trainerClient,
     setEnvId: (envId) => {
-      if (!ENV_LOOKUP[envId]) {
+      const definition = ENV_LOOKUP[envId] ?? ENV_LOOKUP[fallbackEnvId];
+      if (!definition) {
         return;
       }
-      set({ envId });
+      set({ envId: definition.id });
     },
     setAlgoId: (algoId) => {
       const algoDef = ALGORITHM_LOOKUP[algoId];
@@ -242,8 +246,14 @@ export const useTrainingStore = create<TrainingState>((set, get) => {
       const state = get();
       const runId = randomId();
       set({ status: "initialising", runId, lastError: undefined });
-      const envDef = ENV_LOOKUP[state.envId];
+      const envDef = ENV_LOOKUP[state.envId] ?? ENV_LOOKUP[fallbackEnvId];
+      if (!envDef) {
+        throw new Error("Unable to resolve environment definition");
+      }
       const algoDef = ALGORITHM_LOOKUP[state.algoId];
+      if (!algoDef) {
+        throw new Error("Unable to resolve algorithm definition");
+      }
       const manifest: RunManifest = {
         id: runId,
         createdAt: new Date().toISOString(),

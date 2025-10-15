@@ -94,10 +94,11 @@ const GlowTile = ({ accent, position, delay }: { accent: string; position: Vecto
   useFrame((state) => {
     if (materialRef.current) {
       materialRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
+      materialRef.current.uniforms.uPulse.value = pulse.get();
     }
   });
 
-  const { scale, pulse } = useSpring(() => ({
+  const [{ scale, pulse }] = useSpring(() => ({
     from: { scale: 0, pulse: 0 },
     to: [
       { scale: 1.04, pulse: 1 },
@@ -107,17 +108,6 @@ const GlowTile = ({ accent, position, delay }: { accent: string; position: Vecto
     config: config.slow,
     delay,
   }));
-
-  useEffect(() => {
-    const unsub = pulse.onChange((value: number) => {
-      if (materialRef.current) {
-        materialRef.current.uniforms.uPulse.value = value;
-      }
-    });
-    return () => {
-      unsub();
-    };
-  }, [pulse]);
 
   return (
     <animated.mesh

@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import HeroShowcase from "@/ui/hero/HeroShowcase";
-import { EnvironmentGallery } from "@/ui/env/EnvironmentGallery";
 import { SimulationCanvas } from "@/ui/simulation/SimulationCanvas";
 import { SimulationControls } from "@/ui/simulation/SimulationControls";
 import { SimulationMetrics } from "@/ui/simulation/SimulationMetrics";
 import { useSimulationStore } from "@/state/simulationStore";
 import { useShallow } from "zustand/react/shallow";
+import { getAllEnvironments, getEnvironmentName, getEnvironmentDescription } from "@/app/env";
 
 const STATUS_COPY: Record<string, string> = {
   idle: "Ready for launch — load an ONNX actor or start in heuristic mode.",
@@ -27,6 +29,34 @@ const STATUS_ACCENT: Record<string, string> = {
   running: "from-indigo-400/80 via-sky-500/70 to-cyan-400/80",
   paused: "from-amber-400/70 via-amber-500/60 to-amber-400/70",
   error: "from-rose-500/80 via-red-500/70 to-rose-500/80",
+};
+
+const ENV_COLOR_MAP: Record<string, { badge: string; accent: string; border: string }> = {
+  bunny_garden: {
+    badge: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    accent: "from-amber-500/10 to-yellow-500/10",
+    border: "border-amber-500/30 hover:border-amber-500/60",
+  },
+  swarm_drones: {
+    badge: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+    accent: "from-blue-500/10 to-cyan-500/10",
+    border: "border-blue-500/30 hover:border-blue-500/60",
+  },
+  reef_guardians: {
+    badge: "bg-teal-500/20 text-teal-300 border-teal-500/30",
+    accent: "from-teal-500/10 to-emerald-500/10",
+    border: "border-teal-500/30 hover:border-teal-500/60",
+  },
+  warehouse_bots: {
+    badge: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+    accent: "from-slate-500/10 to-gray-500/10",
+    border: "border-slate-500/30 hover:border-slate-500/60",
+  },
+  snowplow_fleet: {
+    badge: "bg-sky-500/20 text-sky-300 border-sky-500/30",
+    accent: "from-sky-500/10 to-blue-500/10",
+    border: "border-sky-500/30 hover:border-sky-500/60",
+  },
 };
 
 export default function Page() {
@@ -48,6 +78,7 @@ export default function Page() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  const environments = getAllEnvironments();
   const statusLine = message ?? STATUS_COPY[status] ?? STATUS_COPY.idle;
   const statusAccent = STATUS_ACCENT[status] ?? STATUS_ACCENT.idle;
   const policyIndicatorClass = policyReady
@@ -90,7 +121,39 @@ export default function Page() {
       <section id="environments" className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_center,_rgba(30,64,175,0.12),transparent_70%)] py-16">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
         <div className="relative mx-auto w-full max-w-6xl px-6">
-          <EnvironmentGallery />
+          <div className="mb-12 space-y-4">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-100">Multi-Environment Playground</h2>
+            <p className="text-lg text-slate-400">
+              5 distinct reinforcement learning environments with independent agents, observation/action spaces, and dual PPO+DQN support.
+            </p>
+          </div>
+          
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {environments.map((envType) => {
+              const envName = getEnvironmentName(envType);
+              const envDesc = getEnvironmentDescription(envType);
+              const colors = ENV_COLOR_MAP[envType] || ENV_COLOR_MAP.bunny_garden;
+              
+              return (
+                <Card key={envType} className={`group border transition-all ${colors.border} bg-white/5 backdrop-blur`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-base font-semibold text-slate-100">{envName}</CardTitle>
+                      <Badge className={colors.badge} variant="outline">{envType.replace(/_/g, " ")}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-xs text-slate-400">{envDesc}</p>
+                    <div className={`rounded-lg bg-gradient-to-br ${colors.accent} p-3 text-xs font-mono text-slate-300`}>
+                      <div>PPO + DQN</div>
+                      <div>Grid: 25×25</div>
+                      <div>L1 + L2</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       </section>
 

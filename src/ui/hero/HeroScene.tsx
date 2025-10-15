@@ -5,8 +5,20 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, Grid, PresentationControls } from "@react-three/drei";
 import { shaderMaterial } from "@react-three/drei";
 import { animated, config, useSpring } from "@react-spring/three";
-import { CatmullRomCurve3, Color, Group, ShaderMaterial, Vector3 } from "three";
-import { cn } from "@/lib/utils";
+import {
+  CatmullRomCurve3,
+  Color,
+  CylinderGeometry,
+  ExtrudeGeometry,
+  Group,
+  IcosahedronGeometry,
+  PlaneGeometry,
+  Shape,
+  ShaderMaterial,
+  TorusGeometry,
+  Vector3,
+} from "three";
+import { cn, lerpColor } from "@/lib/utils";
 import { glowTileVertex, glowTileFragment } from "@/ui/hero/shaders/glowTile";
 
 const TILE_SPACING = 7.5;
@@ -74,6 +86,8 @@ interface HighlightConfig {
   key: string;
   position: Vector3;
   delay: number;
+  variant: number;
+  seed: number;
 }
 
 const GlowTile = ({ accent, position, delay }: { accent: string; position: Vector3; delay: number }) => {
@@ -122,12 +136,250 @@ const GlowTile = ({ accent, position, delay }: { accent: string; position: Vecto
   );
 };
 
+const HexPylon = ({
+  accent,
+  position,
+  seed,
+  delay,
+}: {
+  accent: string;
+  position: Vector3;
+  seed: number;
+  delay: number;
+}) => {
+  const coords = useMemo(() => position.toArray() as [number, number, number], [position]);
+  const height = 0.7 + (seed % 5) * 0.12;
+  const radius = TILE_SPACING * (0.24 + (seed % 3) * 0.04);
+  const geometry = useMemo(
+    () => new CylinderGeometry(radius * 0.65, radius, height, 6, 1, false),
+    [radius, height]
+  );
+
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
+
+  const [{ stretch, spin, glow }] = useSpring(() => ({
+    from: { stretch: 0.85, spin: 0, glow: 0.4 },
+    to: [
+      { stretch: 1.24, spin: Math.PI * 2, glow: 1 },
+      { stretch: 0.92, spin: Math.PI * 4, glow: 0.4 },
+    ],
+    loop: true,
+    config: { mass: 0.9, tension: 58, friction: 16 },
+    delay,
+  }));
+
+  return (
+    <group position={coords}>
+      <animated.mesh
+        scale={stretch.to((v) => [1.02, v, 1.02])}
+        rotation-y={spin}
+        castShadow
+      >
+        <primitive object={geometry} attach="geometry" />
+        <animated.meshStandardMaterial
+          color={accent}
+          emissive={accent}
+          emissiveIntensity={glow.to((v) => 0.35 + v * 0.35)}
+          metalness={0.48}
+          roughness={0.32}
+        />
+      </animated.mesh>
+      <animated.mesh
+        position={[0, height * 0.62, 0]}
+        rotation-x={Math.PI / 2}
+        scale={glow.to((v) => [0.7 + v * 0.2, 0.7 + v * 0.2, 1])}
+        receiveShadow
+      >
+        <ringGeometry args={[radius * 0.72, radius * 0.98, 48]} />
+        <meshStandardMaterial
+          color={lerpColor(accent, "#e2e8f0", 0.2)}
+          emissive={accent}
+          emissiveIntensity={0.42}
+          metalness={0.35}
+          roughness={0.28}
+          transparent
+          opacity={0.78}
+        />
+      </animated.mesh>
+    </group>
+  );
+};
+
+const SignalLoop = ({
+  accent,
+  position,
+  seed,
+  delay,
+}: {
+  accent: string;
+  position: Vector3;
+  seed: number;
+  delay: number;
+}) => {
+  const coords = useMemo(() => position.toArray() as [number, number, number], [position]);
+  const torus = useMemo(() => new TorusGeometry(1.18 + (seed % 4) * 0.08, 0.22, 32, 72), [seed]);
+  const glyphPlane = useMemo(() => new PlaneGeometry(1.8, 1.8, 8, 8), []);
+
+  useEffect(() => {
+    return () => {
+      torus.dispose();
+      glyphPlane.dispose();
+    };
+  }, [torus, glyphPlane]);
+
+  const [{ pulse, tilt }] = useSpring(() => ({
+    from: { pulse: 0, tilt: -0.2 },
+    to: [
+      { pulse: 1, tilt: 0.24 },
+      { pulse: 0, tilt: -0.2 },
+    ],
+    loop: true,
+    config: { mass: 1, tension: 65, friction: 18 },
+    delay,
+  }));
+
+  return (
+    <group position={coords}>
+      <animated.mesh
+        rotation-x={tilt}
+        rotation-y={tilt.to((v) => v * 0.65)}
+        castShadow
+      >
+        <primitive object={torus} attach="geometry" />
+        <animated.meshStandardMaterial
+          color={lerpColor(accent, "#facc15", 0.25)}
+          emissive={accent}
+          emissiveIntensity={pulse.to((v) => 0.4 + v * 0.45)}
+          metalness={0.44}
+          roughness={0.26}
+        />
+      </animated.mesh>
+      <animated.mesh
+        rotation-x={Math.PI / 2}
+        scale={pulse.to((v) => [1 + v * 0.22, 1 + v * 0.22, 1])}
+        position={[0, 0.05, 0]}
+        receiveShadow
+      >
+        <primitive object={glyphPlane} attach="geometry" />
+        <animated.meshStandardMaterial
+          color={lerpColor(accent, "#bae6fd", 0.35)}
+          emissive={accent}
+          emissiveIntensity={pulse.to((v) => 0.2 + v * 0.45)}
+          transparent
+          opacity={0.48}
+        />
+      </animated.mesh>
+    </group>
+  );
+};
+
+const WaveSpire = ({
+  accent,
+  position,
+  seed,
+  delay,
+}: {
+  accent: string;
+  position: Vector3;
+  seed: number;
+  delay: number;
+}) => {
+  const coords = useMemo(() => position.toArray() as [number, number, number], [position]);
+  const shape = useMemo(() => {
+    const s = new Shape();
+    s.moveTo(0, 0);
+    s.quadraticCurveTo(0.3, 0.5, 0.12, 1.2);
+    s.quadraticCurveTo(-0.08, 1.9, -0.02, 2.8);
+    s.quadraticCurveTo(0.18, 3.3, 0, 3.9);
+    return s;
+  }, []);
+  const extrude = useMemo(
+    () =>
+      new ExtrudeGeometry(shape, {
+        steps: 32,
+        depth: 0.4 + (seed % 4) * 0.06,
+        bevelEnabled: true,
+        bevelThickness: 0.18,
+        bevelSize: 0.12,
+        bevelSegments: 8,
+      }),
+    [shape, seed]
+  );
+
+  useEffect(() => {
+    return () => {
+      extrude.dispose();
+    };
+  }, [extrude]);
+
+  const [spring] = useSpring(() => ({
+    from: { wave: 0 },
+    to: [
+      { wave: 1 },
+      { wave: -1 },
+    ],
+    loop: true,
+    config: { mass: 1, tension: 45, friction: 12 },
+    delay,
+  }));
+
+  return (
+    <group position={coords}>
+      <animated.mesh
+        rotation-y={spring.wave.to((v) => v * 0.45)}
+        rotation-z={spring.wave.to((v) => v * 0.22)}
+        scale={spring.wave.to((v) => [1, 1 + v * 0.08, 1])}
+        castShadow
+      >
+        <primitive object={extrude} attach="geometry" />
+        <meshStandardMaterial
+          color={lerpColor(accent, "#f5d0fe", 0.3)}
+          emissive={accent}
+          emissiveIntensity={0.38}
+          metalness={0.42}
+          roughness={0.33}
+        />
+      </animated.mesh>
+      <animated.mesh position={[0, 2.1, 0]} rotation={[Math.PI / 2, 0, 0]} scale={spring.wave.to((v) => [1 + v * 0.1, 1 + v * 0.1, 1])}>
+        <ringGeometry args={[0.65, 0.88, 42]} />
+        <meshStandardMaterial
+          color={lerpColor(accent, "#f0fdf4", 0.3)}
+          emissive={accent}
+          emissiveIntensity={0.26}
+          transparent
+          opacity={0.68}
+        />
+      </animated.mesh>
+    </group>
+  );
+};
+
+const HighlightElement = ({ accent, node }: { accent: string; node: HighlightConfig }) => {
+  switch (node.variant) {
+    case 0:
+      return <GlowTile accent={accent} position={node.position} delay={node.delay} />;
+    case 1:
+      return <HexPylon accent={lerpColor(accent, "#38bdf8", 0.22)} position={node.position} seed={node.seed} delay={node.delay} />;
+    case 2:
+      return <SignalLoop accent={lerpColor(accent, "#f97316", 0.3)} position={node.position} seed={node.seed} delay={node.delay} />;
+    case 3:
+    default:
+      return <WaveSpire accent={lerpColor(accent, "#c084fc", 0.35)} position={node.position} seed={node.seed} delay={node.delay} />;
+  }
+};
+
 const BasePlatform = ({ accent, highlights }: { accent: string; highlights: Array<{ x: number; z: number }> }) => {
   const highlightNodes = useMemo<HighlightConfig[]>(() => {
     return highlights.map(({ x, z }, index) => ({
       key: `${x}-${z}-${index}`,
       position: new Vector3(x * TILE_SPACING, 0.12, z * TILE_SPACING),
       delay: 220 + index * 90,
+      variant: index % 4,
+      seed: ((x + 11) * 31 + (z + 17) * 17 + index * 13) % 97,
     }));
   }, [highlights]);
 
@@ -173,7 +425,7 @@ const BasePlatform = ({ accent, highlights }: { accent: string; highlights: Arra
       />
 
       {highlightNodes.map((node) => (
-        <GlowTile key={node.key} accent={accent} position={node.position} delay={node.delay} />
+        <HighlightElement key={node.key} accent={accent} node={node} />
       ))}
     </group>
   );
@@ -223,46 +475,273 @@ const Goal = ({ position, accent }: { position: Vector3; accent: string }) => {
   );
 };
 
-const OrbitingDrones = ({ accent }: { accent: string }) => {
-  const groupRef = useRef<Group>(null);
+interface PolarPlacement {
+  angle: number;
+  radius: number;
+  height: number;
+}
+
+const HelixSentinel = ({
+  color,
+  placement,
+  delay,
+}: {
+  color: string;
+  placement: PolarPlacement;
+  delay: number;
+}) => {
+  const { angle, radius, height } = placement;
+  const helixRef = useRef<Group>(null);
 
   useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.22;
+    if (helixRef.current) {
+      helixRef.current.rotation.y += delta * 0.6;
     }
   });
 
-  const drones = useMemo(() => {
-    return Array.from({ length: 8 }).map((_, index) => ({
-      radius: TILE_SPACING * (3.2 + (index % 2) * 0.28),
-      height: 4.2 + (index % 3) * 0.8,
-      angle: (index / 8) * Math.PI * 2,
-    }));
-  }, []);
+  const position = useMemo(
+    () => [Math.cos(angle) * radius, height, Math.sin(angle) * radius] as [number, number, number],
+    [angle, radius, height]
+  );
+
+  const [{ scale, twist }] = useSpring(() => ({
+    from: { scale: 0.88, twist: -0.4 },
+    to: [
+      { scale: 1.18, twist: 0.35 },
+      { scale: 0.92, twist: -0.4 },
+    ],
+    loop: true,
+    config: { mass: 1.1, tension: 90, friction: 18 },
+    delay,
+  }));
 
   return (
-    <group ref={groupRef} position={[0, 0, 0]}>
-  {drones.map((drone, index) => (
-        <Float key={index} speed={1.7} rotationIntensity={0.35} floatIntensity={0.9}>
-          <mesh
-            position={[
-              Math.cos(drone.angle) * drone.radius,
-              drone.height,
-              Math.sin(drone.angle) * drone.radius,
-            ]}
-            castShadow
-          >
-            <icosahedronGeometry args={[1.15, 0]} />
-            <meshStandardMaterial
-              color={accent}
-              emissive={accent}
-              emissiveIntensity={0.95}
-              metalness={0.45}
-              roughness={0.35}
-            />
-          </mesh>
-        </Float>
-      ))}
+    <group ref={helixRef} position={position}>
+      <animated.mesh scale={scale.to((v) => [v, v, v])} rotation-y={twist} castShadow>
+        <torusKnotGeometry args={[1.4, 0.42, 140, 24]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.78}
+          metalness={0.55}
+          roughness={0.28}
+        />
+      </animated.mesh>
+    </group>
+  );
+};
+
+const PulsePrism = ({
+  color,
+  placement,
+  delay,
+}: {
+  color: string;
+  placement: PolarPlacement;
+  delay: number;
+}) => {
+  const { angle, radius, height } = placement;
+  const position = useMemo(
+    () => [Math.cos(angle) * radius, height, Math.sin(angle) * radius] as [number, number, number],
+    [angle, radius, height]
+  );
+
+  const [{ scale, tilt }] = useSpring(() => ({
+    from: { scale: 0.72, tilt: -0.5 },
+    to: [
+      { scale: 1.08, tilt: 0.4 },
+      { scale: 0.72, tilt: -0.5 },
+    ],
+    loop: true,
+    config: { mass: 0.9, tension: 70, friction: 12 },
+    delay,
+  }));
+
+  return (
+    <animated.mesh
+      position={position}
+      rotation-x={0.6}
+      rotation-y={tilt}
+      scale={scale.to((v) => [v, v * 1.2, v])}
+      castShadow
+    >
+      <octahedronGeometry args={[1.28, 0]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={0.58}
+        metalness={0.42}
+        roughness={0.34}
+      />
+    </animated.mesh>
+  );
+};
+
+const SignalCapsule = ({
+  color,
+  placement,
+  delay,
+}: {
+  color: string;
+  placement: PolarPlacement;
+  delay: number;
+}) => {
+  const { angle, radius, height } = placement;
+  const capsuleRef = useRef<Group>(null);
+
+  useFrame((_, delta) => {
+    if (capsuleRef.current) {
+      capsuleRef.current.rotation.y += delta * 0.32;
+      capsuleRef.current.rotation.z += delta * 0.14;
+    }
+  });
+
+  const position = useMemo(
+    () => [Math.cos(angle) * radius, height, Math.sin(angle) * radius] as [number, number, number],
+    [angle, radius, height]
+  );
+
+  const [{ bob, shimmer }] = useSpring(() => ({
+    from: { bob: -0.55, shimmer: 0 },
+    to: [
+      { bob: 0.55, shimmer: 1 },
+      { bob: -0.55, shimmer: 0 },
+    ],
+    loop: true,
+    config: { mass: 1.4, tension: 42, friction: 14 },
+    delay,
+  }));
+
+  return (
+    <group position={position}>
+      <animated.group ref={capsuleRef} position={bob.to((v) => [0, v, 0])}>
+        <mesh castShadow>
+          <capsuleGeometry args={[0.72, 1.8, 14, 28]} />
+          <animated.meshStandardMaterial
+            color={lerpColor(color, "#f472b6", 0.32)}
+            emissive={lerpColor(color, "#f472b6", 0.1)}
+            emissiveIntensity={shimmer.to((v) => 0.35 + v * 0.45)}
+            metalness={0.5}
+            roughness={0.35}
+          />
+        </mesh>
+        <animated.mesh
+          rotation={[Math.PI / 2, 0, 0]}
+          scale={shimmer.to((v) => [1 + v * 0.22, 1 + v * 0.22, 1])}
+        >
+          <ringGeometry args={[1.08, 1.32, 48]} />
+          <meshStandardMaterial
+            color={color}
+            emissive={color}
+            emissiveIntensity={0.36}
+            transparent
+            opacity={0.65}
+          />
+        </animated.mesh>
+      </animated.group>
+    </group>
+  );
+};
+
+const DataGlyph = ({
+  color,
+  placement,
+  delay,
+}: {
+  color: string;
+  placement: PolarPlacement;
+  delay: number;
+}) => {
+  const { angle, radius, height } = placement;
+  const glyphRef = useRef<Group>(null);
+  const wireframeGeometry = useMemo(() => new IcosahedronGeometry(1.42, 0), []);
+
+  useEffect(() => {
+    return () => {
+      wireframeGeometry.dispose();
+    };
+  }, [wireframeGeometry]);
+
+  useFrame((_, delta) => {
+    if (glyphRef.current) {
+      glyphRef.current.rotation.y += delta * 0.48;
+      glyphRef.current.rotation.x += delta * 0.18;
+    }
+  });
+
+  const position = useMemo(
+    () => [Math.cos(angle) * radius, height, Math.sin(angle) * radius] as [number, number, number],
+    [angle, radius, height]
+  );
+
+  const [spring] = useSpring(() => ({
+    from: { scale: 0.76 },
+    to: [
+      { scale: 1.08 },
+      { scale: 0.76 },
+    ],
+    loop: true,
+    config: { mass: 1, tension: 74, friction: 16 },
+    delay,
+  }));
+
+  return (
+    <group ref={glyphRef} position={position}>
+      <animated.mesh scale={spring.scale.to((v) => [v, v, v])} castShadow>
+        <sphereGeometry args={[1.28, 48, 48]} />
+        <meshStandardMaterial
+          color={lerpColor(color, "#e0f2fe", 0.4)}
+          emissive={color}
+          emissiveIntensity={0.32}
+          metalness={0.35}
+          roughness={0.26}
+          transparent
+          opacity={0.82}
+        />
+      </animated.mesh>
+      <lineSegments>
+        <edgesGeometry attach="geometry" args={[wireframeGeometry]} />
+        <lineBasicMaterial
+          attach="material"
+          color={color}
+          transparent
+          opacity={0.85}
+        />
+      </lineSegments>
+    </group>
+  );
+};
+
+const ShowcaseMeshes = ({ accent }: { accent: string }) => {
+  const palette = useMemo(() => [
+    accent,
+    lerpColor(accent, "#f97316", 0.35),
+    lerpColor(accent, "#34d399", 0.4),
+    lerpColor(accent, "#c084fc", 0.48),
+  ], [accent]);
+
+  return (
+    <group>
+      <HelixSentinel
+        color={palette[0]}
+        placement={{ angle: Math.PI * 0.05, radius: TILE_SPACING * 3.4, height: 4.1 }}
+        delay={90}
+      />
+      <PulsePrism
+        color={palette[1]}
+        placement={{ angle: Math.PI * 0.52, radius: TILE_SPACING * 3.1, height: 3.4 }}
+        delay={240}
+      />
+      <SignalCapsule
+        color={palette[2]}
+        placement={{ angle: Math.PI * 1.08, radius: TILE_SPACING * 3.6, height: 3.9 }}
+        delay={420}
+      />
+      <DataGlyph
+        color={palette[3]}
+        placement={{ angle: Math.PI * 1.58, radius: TILE_SPACING * 3.25, height: 4.6 }}
+        delay={520}
+      />
     </group>
   );
 };
@@ -424,7 +903,7 @@ const AnimatedScene = ({
         <group position={[0, -5.8, 0]}>
           <BasePlatform accent={accent} highlights={highlights} />
           <PathRibbon accent={accent} points={pathPoints} />
-          <OrbitingDrones accent={accent} />
+          <ShowcaseMeshes accent={accent} />
           <Goal accent={accent} position={goalPosition} />
 
           <animated.group position={agentMotion.position} rotation-y={agentMotion.heading}>

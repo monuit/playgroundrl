@@ -1,0 +1,111 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - link "GRL GymRL" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e6]: GRL
+        - text: GymRL
+      - generic [ref=e7]:
+        - link "Docs" [ref=e8] [cursor=pointer]:
+          - /url: /docs
+        - link "GitHub" [ref=e9] [cursor=pointer]:
+          - /url: https://github.com/boredbedouin
+          - img
+          - text: GitHub
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: Browser Policy Lab
+        - link "Run Live" [ref=e14] [cursor=pointer]:
+          - /url: "#lab"
+          - img
+          - text: Run Live
+      - generic [ref=e15]:
+        - generic [ref=e18]:
+          - generic:
+            - generic:
+              - button "Level 1" [ref=e22]
+              - button "Level 2" [ref=e23]
+              - button "Level 3" [ref=e24]
+            - generic [ref=e25]: Gentle meadow with sparse carrots and a forgiving timer.
+        - generic:
+          - heading "GymRL" [level=1]
+          - paragraph: Load ONNX actors in the browser, watch agents weave through a neon grid, and iterate on policies without leaving your tab.
+    - generic [ref=e27]:
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - generic [ref=e31]:
+            - generic [ref=e32]: loading
+            - heading "Training Playground" [level=2] [ref=e33]
+            - paragraph [ref=e34]: Fetching ONNX weights…
+            - generic [ref=e35]: Loading policy…
+          - generic [ref=e36]:
+            - button "Load policy" [ref=e37]
+            - button "Reset & Reload" [ref=e38]
+        - generic [ref=e44]:
+          - generic [ref=e45]:
+            - generic [ref=e46]:
+              - generic [ref=e47]:
+                - generic [ref=e48]: loading
+                - generic [ref=e49]: Heuristic mode
+              - generic [ref=e50]: Simulation controls
+              - paragraph [ref=e51]: Loading policy…
+            - generic [ref=e52]:
+              - generic [ref=e53]:
+                - generic [ref=e54]: Difficulty
+                - combobox [ref=e55]:
+                  - generic: Radiant Meadow
+                  - img
+              - generic [ref=e56]:
+                - generic [ref=e57]:
+                  - text: Agents
+                  - generic [ref=e58]: "8"
+                - slider [ref=e59]: "8"
+              - generic [ref=e60]:
+                - generic [ref=e61]: Simulation speed ×1.00
+                - slider [ref=e62]: "1"
+              - generic [ref=e63]:
+                - button "Start" [ref=e64]
+                - button "Step" [ref=e65]
+                - button "Reset arena" [ref=e66]
+                - button "Render medium" [ref=e67]
+              - generic [ref=e68]:
+                - generic [ref=e69]:
+                  - button "Load policy from /models" [ref=e70]
+                  - button "Upload" [ref=e71]
+                - paragraph [ref=e72]:
+                  - text: Drop an ONNX actor into
+                  - code [ref=e73]: public/models/
+                  - text: or upload a file to hot-swap policies.
+          - generic [ref=e74]:
+            - generic [ref=e75]:
+              - generic [ref=e76]: Live telemetry
+              - generic [ref=e77]: meadow
+            - generic [ref=e78]:
+              - generic [ref=e79]:
+                - paragraph [ref=e80]: Ticks
+                - paragraph [ref=e81]: "0"
+              - generic [ref=e82]:
+                - paragraph [ref=e83]: Episode
+                - paragraph [ref=e84]: "1"
+              - generic [ref=e85]:
+                - paragraph [ref=e86]: Agents
+                - paragraph [ref=e87]: "0"
+              - generic [ref=e88]:
+                - paragraph [ref=e89]: Reward Σ
+                - paragraph [ref=e90]: "0"
+              - generic [ref=e91]:
+                - paragraph [ref=e92]: Reward / agent
+                - paragraph [ref=e93]: "0"
+              - generic [ref=e94]:
+                - paragraph [ref=e95]: Steps per second
+                - paragraph [ref=e96]: "0"
+      - generic [ref=e97]:
+        - link "Docs & Curriculum" [ref=e98] [cursor=pointer]:
+          - /url: /docs
+        - link "GitHub" [ref=e99] [cursor=pointer]:
+          - /url: https://github.com/boredbedouin/GymRL
+  - alert [ref=e100]
+```

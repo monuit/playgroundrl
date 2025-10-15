@@ -7,11 +7,12 @@ import type { GridRenderableState } from "@/lib/simulation/gridWorld";
 
 interface GridWorldSceneProps {
   frame: GridRenderableState;
+  quality: "high" | "medium";
 }
 
 const tileSize = 1;
 
-export function GridWorldScene({ frame }: GridWorldSceneProps) {
+export function GridWorldScene({ frame, quality }: GridWorldSceneProps) {
   const obstacleRef = useRef<InstancedMesh>(null);
   const rewardRef = useRef<InstancedMesh>(null);
   const agentRef = useRef<InstancedMesh>(null);
@@ -101,7 +102,7 @@ export function GridWorldScene({ frame }: GridWorldSceneProps) {
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow={quality === "high"}>
         <planeGeometry args={[frame.size * tileSize, frame.size * tileSize, frame.size, frame.size]} />
         <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.05} />
       </mesh>
@@ -112,8 +113,8 @@ export function GridWorldScene({ frame }: GridWorldSceneProps) {
       <instancedMesh
         ref={obstacleRef}
         args={[undefined, undefined, Math.max(1, obstaclePositions.length)]}
-        castShadow
-        receiveShadow
+        castShadow={quality === "high"}
+        receiveShadow={quality === "high"}
       >
         <boxGeometry args={[0.9, 0.8, 0.9]} />
         <meshStandardMaterial color="#1e293b" roughness={0.6} metalness={0.1} />
@@ -121,7 +122,7 @@ export function GridWorldScene({ frame }: GridWorldSceneProps) {
       <instancedMesh
         ref={rewardRef}
         args={[undefined, undefined, Math.max(1, rewardPositions.length)]}
-        castShadow
+        castShadow={quality === "high"}
       >
         <icosahedronGeometry args={[0.35, 0]} />
         <meshStandardMaterial color="#38bdf8" emissive="#22d3ee" emissiveIntensity={0.6} />
@@ -129,17 +130,17 @@ export function GridWorldScene({ frame }: GridWorldSceneProps) {
       <instancedMesh
         ref={agentRef}
         args={[undefined, undefined, Math.max(1, agentStates.length)]}
-        castShadow
+        castShadow={quality === "high"}
       >
         <coneGeometry args={[0.4, 1.2, 12]} />
         <meshStandardMaterial color="#38bdf8" metalness={0.3} roughness={0.35} />
       </instancedMesh>
       <Sparkles
-        size={1.8}
-        count={frame.rewards.length * 8 + 32}
-        scale={[frame.size, 6, frame.size]}
-        speed={0.6}
-        opacity={0.4}
+        size={quality === "high" ? 1.8 : 1.2}
+        count={frame.rewards.length * (quality === "high" ? 8 : 4) + (quality === "high" ? 32 : 16)}
+        scale={[frame.size, quality === "high" ? 6 : 4, frame.size]}
+        speed={quality === "high" ? 0.6 : 0.4}
+        opacity={quality === "high" ? 0.4 : 0.25}
       />
     </group>
   );

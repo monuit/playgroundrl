@@ -2,6 +2,78 @@ import Link from "next/link";
 import { ArrowLeft, Box, Code, Cpu, Layers, Rocket, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const STACK_CARDS = [
+  {
+    icon: Rocket,
+    title: "Framework",
+    description:
+      "Next.js 15 + React 19 handle routing, streaming, and suspense while TypeScript keeps the playground type-safe.",
+  },
+  {
+    icon: Box,
+    title: "Simulation",
+    description:
+      "A dedicated Web Worker advances the grid world, emits renderable frames, and keeps the main thread silky smooth.",
+  },
+  {
+    icon: Cpu,
+    title: "Policy runtime",
+    description:
+      "ONNX Runtime Web executes exported policies directly in the browser with WebGL acceleration and WASM fallback.",
+  },
+] as const;
+
+const MODULES = [
+  {
+    title: "Simulation store",
+    path: "src/state/simulationStore.ts",
+    blurb:
+      "Zustand slice that owns status, frame data, difficulty, and worker messaging. All UI components subscribe here.",
+  },
+  {
+    title: "Grid world engine",
+    path: "src/lib/simulation/gridWorld.ts",
+    blurb:
+      "Deterministic world generator with seeded randomness, agent heuristics, and render metadata packing.",
+  },
+  {
+    title: "Policy runner",
+    path: "src/lib/simulation/policyRunner.ts",
+    blurb:
+      "ONNX adapter that normalises tensors, batches requests, and returns greedy actions with a tiny API surface.",
+  },
+  {
+    title: "Dashboard UI",
+    path: "src/ui/dashboard/TrainingDashboard.tsx",
+    blurb:
+      "Hero surface that autoloads policies, shows telemetry badges, and wires controls to the simulation store.",
+  },
+  {
+    title: "Simulation controls",
+    path: "src/ui/simulation/SimulationControls.tsx",
+    blurb:
+      "Difficulty, agent count, playback speed, and upload handling—everything is tuned via friendly sliders and dropzones.",
+  },
+  {
+    title: "Worker",
+    path: "src/workers/simulation.worker.ts",
+    blurb:
+      "Receives commands, loads ONNX models, steps the grid, measures rewards, and streams results back to the store.",
+  },
+] as const;
+
+const PIPELINE = `UI event
+    ↓
+useSimulationStore(action)
+    ↓ postMessage
+simulation.worker.ts
+    ↓
+policyRunner.infer()
+    ↓
+gridWorld.step()
+    ↓
+renderable frame → React Three Fiber`;
+
 export default function DesignPage() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -37,703 +109,160 @@ export default function DesignPage() {
           </div>
         </header>
 
-        <div className="relative z-10 mx-auto w-full max-w-6xl space-y-8 px-6 py-12">
-          {/* What It Is */}
+        <div className="relative z-10 mx-auto w-full max-w-6xl space-y-10 px-6 py-12">
           <section className="space-y-6">
             <div className="flex items-center gap-3">
               <div className="rounded-full border border-cyan-400/50 bg-cyan-500/10 p-3 text-cyan-300">
                 <Layers className="size-6" />
               </div>
-              <h2 className="text-3xl font-bold text-white">What It Is</h2>
+              <h2 className="text-3xl font-bold text-white">Playground at a glance</h2>
             </div>
-
-            <p className="text-slate-300">
-              <strong>GymRL</strong> is a fully browser-based reinforcement learning playground. Train PPO and DQN agents
-              in real-time using TensorFlow.js - no backend servers, no Python runtime, everything runs locally in your browser.
+            <p className="text-sm text-slate-300">
+              PlaygroundRL is now inference-first: the dashboard streams observations to an ONNX Runtime policy, the
+              simulation ticks inside a worker, and React Three Fiber paints the neon grid—all entirely on the client.
             </p>
-
-            <div className="space-y-4">
-              <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                <div className="flex items-center gap-2">
-                  <Rocket className="size-5 text-cyan-400" />
-                  <h3 className="text-xl font-semibold text-white">Framework & Deployment</h3>
-                </div>
-                <div className="space-y-3 text-sm text-slate-300">
-                  <p>
-                    <strong className="text-slate-200">Next.js 15.5.5 + React 19.1.0</strong> (TypeScript) app using the App Router,
-                    optimized for static export and edge deployment on Vercel.
-                  </p>
-                  <ul className="list-inside list-disc space-y-1 pl-4">
-                    <li>App Router for modern file-based routing</li>
-                    <li>Static site generation (SSG) for instant page loads</li>
-                    <li>React Server Components for optimal bundle splitting</li>
-                    <li>TypeScript 5 for type safety across the stack</li>
-                  </ul>
-                </div>
-              </article>
-
-              <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                <div className="flex items-center gap-2">
-                  <Box className="size-5 text-purple-400" />
-                  <h3 className="text-xl font-semibold text-white">In-Browser RL Training</h3>
-                </div>
-                <div className="space-y-3 text-sm text-slate-300">
-                  <p>
-                    <strong className="text-slate-200">TensorFlow.js 4.22.0</strong> with WebGL backend powers GPU-accelerated
-                    training entirely in your browser. Train PPO and DQN agents without any server-side computation.
-                  </p>
-                  <ul className="list-inside list-disc space-y-1 pl-4">
-                    <li><strong>PPO Agent:</strong> Actor-critic with clipped surrogate objective (256×2 GELU layers)</li>
-                    <li><strong>DQN Agent:</strong> Deep Q-Network with target network and experience replay (128×2 ReLU layers)</li>
-                    <li><strong>WebGL Backend:</strong> Neural networks run on GPU for 10-100x speedup</li>
-                    <li><strong>Web Workers:</strong> Training loop isolated from UI thread via `trainer.worker.ts`</li>
-                    <li><strong>Memory Management:</strong> Automatic tensor disposal with `tf.tidy()` prevents memory leaks</li>
-                  </ul>
-                  <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                    <pre>{`// src/algo/ppo_tfjs.ts - Real implementation
-export class PpoTfjsAgent {
-  private policyModel: tf.LayersModel;  // Actor
-  private valueModel: tf.LayersModel;   // Critic
-  
-  async act(obs: EnvObservation) {
-    const logits = this.policyModel.predict(...) as tf.Tensor;
-    const probs = tf.softmax(logits);
-    const action = tf.multinomial(probs, 1).dataSync()[0];
-    return action;
-  }
-}`}</pre>
-                  </div>
-                </div>
-              </article>
-
-              <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                <div className="flex items-center gap-2">
-                  <Code className="size-5 text-green-400" />
-                  <h3 className="text-xl font-semibold text-white">RL Environments</h3>
-                </div>
-                <div className="space-y-3 text-sm text-slate-300">
-                  <p>
-                    <strong className="text-slate-200">5 Custom Environments</strong> built from scratch with Canvas 2D rendering.
-                    Each implements the standard Gym interface: `reset()`, `step(action)`, and `render(ctx)`.
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                      <p className="font-semibold text-slate-200">CartPole</p>
-                      <p className="text-xs text-slate-400">Balance pole on moving cart</p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                      <p className="font-semibold text-slate-200">Pong</p>
-                      <p className="text-xs text-slate-400">Single-player paddle game</p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                      <p className="font-semibold text-slate-200">Maze</p>
-                      <p className="text-xs text-slate-400">Grid navigation task</p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                      <p className="font-semibold text-slate-200">TinyGrid</p>
-                      <p className="text-xs text-slate-400">Simple 3×3 world</p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                      <p className="font-semibold text-slate-200">FlappyLite</p>
-                      <p className="text-xs text-slate-400">Flappy Bird inspired</p>
-                    </div>
-                  </div>
-                  <ul className="list-inside list-disc space-y-1 pl-4 text-xs">
-                    <li>Consistent interface: Float32Array observations, discrete actions</li>
-                    <li>60 FPS rendering with requestAnimationFrame</li>
-                    <li>Training loop decoupled from render loop</li>
-                    <li>Lightweight Canvas 2D - no WebGL/3D overhead</li>
-                  </ul>
-                </div>
-              </article>
-
-              <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                <div className="flex items-center gap-2">
-                  <Zap className="size-5 text-yellow-400" />
-                  <h3 className="text-xl font-semibold text-white">UI & State Management</h3>
-                </div>
-                <div className="space-y-3 text-sm text-slate-300">
-                  <p>
-                    <strong className="text-slate-200">Tailwind CSS 4 + shadcn/ui</strong> for a beautiful, responsive interface.
-                    State managed with <strong>Zustand 5</strong> and persisted to <strong>Dexie (IndexedDB)</strong>.
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                      <p className="font-semibold text-slate-200">UI Framework</p>
-                      <p className="mt-1 text-xs text-slate-400">
-                        shadcn/ui components + Radix UI primitives
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                      <p className="font-semibold text-slate-200">State</p>
-                      <p className="mt-1 text-xs text-slate-400">Zustand 5 with immer middleware</p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                      <p className="font-semibold text-slate-200">Persistence</p>
-                      <p className="mt-1 text-xs text-slate-400">Dexie + IndexedDB for checkpoints & episodes</p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                      <p className="font-semibold text-slate-200">Worker Communication</p>
-                      <p className="mt-1 text-xs text-slate-400">TrainerClient wrapper with message passing</p>
-                    </div>
-                  </div>
-                  <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                    <pre>{`// src/state/trainingStore.ts
-const useTrainingStore = create<TrainingState>((set) => ({
-  status: 'idle',
-  metrics: [],
-  start: async () => {
-    await trainerClient.start({ envId, algoId });
-    set({ status: 'running' });
-  }
-}));`}</pre>
-                  </div>
-                </div>
-              </article>
-
-              <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                <div className="flex items-center gap-2">
-                  <Cpu className="size-5 text-red-400" />
-                  <h3 className="text-xl font-semibold text-white">Repository Structure</h3>
-                </div>
-                <div className="space-y-3 text-sm text-slate-300">
-                  <p>Clean, modular architecture with clear separation of concerns:</p>
-                  <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                    <pre>{`web/
-├── src/
-│   ├── app/                   # Next.js App Router
-│   │   ├── page.tsx          # Main playground
-│   │   ├── docs/             # Documentation pages
-│   │   ├── globals.css       # Tailwind styles
-│   │   └── layout.tsx        # Root layout
-│   ├── algo/                  # RL Algorithms
-│   │   ├── ppo_tfjs.ts       # PPO implementation
-│   │   ├── dqn_tfjs.ts       # DQN implementation
-│   │   ├── buffers.ts        # Replay & rollout buffers
-│   │   ├── schedules.ts      # Learning rate schedules
-│   │   └── types.ts          # Algorithm interfaces
-│   ├── env/                   # RL Environments
-│   │   ├── cartpole.tsx      # CartPole
-│   │   ├── pong.tsx          # Pong
-│   │   ├── maze.tsx          # Maze
-│   │   ├── tiny_grid.tsx     # TinyGrid
-│   │   ├── flappy_lite.tsx   # FlappyLite
-│   │   └── types.ts          # Environment interface
-│   ├── workers/               # Web Workers
-│   │   ├── trainer.worker.ts # Main training loop
-│   │   └── types.ts          # Worker messages
-│   ├── state/                 # State Management
-│   │   ├── trainingStore.ts  # Zustand store
-│   │   ├── persistence.ts    # IndexedDB layer
-│   │   └── export_import.ts  # Checkpoint I/O
-│   ├── ui/                    # React Components
-│   │   ├── dashboard/        # Main training UI
-│   │   ├── panels/           # Control panels
-│   │   ├── metrics/          # Charts
-│   │   └── env/              # Canvas wrapper
-│   ├── lib/                   # Utilities
-│   │   └── trainerClient.ts  # Worker client
-│   └── utils/                 # Helpers
-├── public/
-│   ├── workers/              # Built worker bundles
-│   └── pyodide/              # Pyodide runtime (optional)
-└── tests/                     # E2E tests
-    └── training.spec.ts      # Playwright tests`}</pre>
-                  </div>
-                </div>
-              </article>
+            <div className="grid gap-4 md:grid-cols-3">
+              {STACK_CARDS.map((card) => (
+                <article
+                  key={card.title}
+                  className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur"
+                >
+                  <card.icon className="size-6 text-cyan-300" />
+                  <h3 className="text-lg font-semibold text-white">{card.title}</h3>
+                  <p className="text-sm text-slate-300">{card.description}</p>
+                </article>
+              ))}
             </div>
           </section>
 
-          {/* How to Recreate It */}
           <section className="space-y-6">
             <div className="flex items-center gap-3">
-              <div className="rounded-full border border-purple-400/50 bg-purple-500/10 p-3 text-purple-300">
+              <div className="rounded-full border border-emerald-400/50 bg-emerald-500/10 p-3 text-emerald-300">
+                <Box className="size-6" />
+              </div>
+              <h2 className="text-3xl font-bold text-white">Core modules</h2>
+            </div>
+            <p className="text-sm text-slate-300">
+              Each layer keeps a tight focus: the store orchestrates, the worker executes, and the UI simply reacts to
+              state changes. Dive into any file below to see how the pieces lock together.
+            </p>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {MODULES.map((module) => (
+                <article
+                  key={module.title}
+                  className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur"
+                >
+                  <h3 className="text-lg font-semibold text-white">{module.title}</h3>
+                  <p className="font-mono text-xs text-cyan-300">{module.path}</p>
+                  <p className="text-sm text-slate-300">{module.blurb}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full border border-violet-400/50 bg-violet-500/10 p-3 text-violet-300">
                 <Code className="size-6" />
               </div>
-              <h2 className="text-3xl font-bold text-white">How to Recreate It</h2>
+              <h2 className="text-3xl font-bold text-white">Command flow</h2>
             </div>
-
-            {/* Step 1: Framework Setup */}
-            <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h3 className="text-xl font-semibold text-white">
-                <span className="mr-2 text-cyan-400">01</span>
-                Set Up the Framework
-              </h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Initialize Next.js with TypeScript and install core dependencies:</p>
-                <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                  <pre>{`# Create Next.js app
-npx create-next-app@latest gymrl --typescript --app --tailwind
-
-# Install TensorFlow.js
-npm install @tensorflow/tfjs @tensorflow/tfjs-backend-webgl
-
-# Install UI dependencies
-npm install zustand class-variance-authority clsx tailwind-merge
-npm install recharts lucide-react
-
-# Install shadcn/ui
-npx shadcn@latest init
-npx shadcn@latest add button card select slider tabs
-
-# Install development tools
-npm install -D @playwright/test`}</pre>
+            <p className="text-sm text-slate-300">
+              The store exposes a handful of methods—
+              <code className="rounded bg-white/10 px-1 py-0.5">loadPolicy</code>,
+              <code className="rounded bg-white/10 px-1 py-0.5">start</code>,
+              <code className="rounded bg-white/10 px-1 py-0.5">pause</code>, and configuration setters. Everything
+              funnels through the worker, which broadcasts state snapshots back to subscribers.
+            </p>
+            <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+              <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                <h3 className="text-lg font-semibold text-white">High-level pipeline</h3>
+                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 font-mono text-xs text-slate-200">
+                  <pre>{PIPELINE}</pre>
                 </div>
-              </div>
-            </article>
-
-            {/* Step 2: Environment Design */}
-            <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h3 className="text-xl font-semibold text-white">
-                <span className="mr-2 text-cyan-400">02</span>
-                Design the Environments
-              </h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Create RL environments with consistent interfaces:</p>
-                <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                  <pre>{`// src/env/types.ts
-export interface Environment {
-  reset(): EnvObservation;
-  step(action: number): StepResult;
-  render(ctx: CanvasRenderingContext2D): void;
-  getObservationSpace(): number[];
-  getActionSpace(): number;
-}
-
-// Example environments:
-// - CartPole: Balance pole on moving cart
-// - Pong: Single-player paddle game
-// - Maze: Navigation with obstacles
-// - TinyGrid: Simple grid world
-// - FlappyBird Lite: Jump timing game`}</pre>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Each environment implements reset(), step(), and render() for consistency. Observations are normalized
-                  Float32Arrays for efficient neural network input.
+                <p className="text-sm text-slate-300">
+                  The worker returns frames with reward totals, step counts, and difficulty metadata. The store computes
+                  steps-per-second by comparing ticks and timestamps so the UI can surface live telemetry.
                 </p>
-              </div>
-            </article>
+              </article>
+              <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                <h3 className="text-lg font-semibold text-white">Store excerpt</h3>
+                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 font-mono text-xs text-slate-200">
+                  <pre>{`const { status, policyReady, loadPolicy, start, pause, resume } = useSimulationStore();
 
-            {/* Step 3: Canvas Rendering */}
-            <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h3 className="text-xl font-semibold text-white">
-                <span className="mr-2 text-cyan-400">03</span>
-                Implement Canvas Rendering
-              </h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Efficient 2D rendering with React hooks:</p>
-                <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                  <pre>{`// src/ui/env/EnvCanvas.tsx
-export function EnvCanvas({ environment }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!ctx) return;
-    
-    const animate = () => {
-      // Clear and render environment
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      environment.render(ctx);
-      requestAnimationFrame(animate);
-    };
-    
-    const animationId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationId);
-  }, [environment]);
-  
-  return <canvas ref={canvasRef} width={800} height={600} />;
-}`}</pre>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Keep rendering at 60 FPS while decoupling it from training steps. Use requestAnimationFrame for smooth
-                  visuals and simple canvas drawing operations for performance.
-                </p>
-              </div>
-            </article>
-
-            {/* Step 4: Algorithm Implementation */}
-            <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h3 className="text-xl font-semibold text-white">
-                <span className="mr-2 text-cyan-400">04</span>
-                Build RL Algorithms
-              </h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Implement PPO and DQN with TensorFlow.js:</p>
-                <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                  <pre>{`// src/algo/ppo_tfjs.ts
-export class PpoTfjsAgent {
-  private policyModel: tf.LayersModel;
-  private valueModel: tf.LayersModel;
-  
-  async init({ obsShape, actionSize }) {
-    // Build actor network (policy)
-    this.policyModel = tf.sequential({
-      layers: [
-        tf.layers.dense({ units: 256, activation: 'gelu' }),
-        tf.layers.dense({ units: 256, activation: 'gelu' }),
-        tf.layers.dense({ units: actionSize }) // logits
-      ]
-    });
-    
-    // Build critic network (value)
-    this.valueModel = tf.sequential({
-      layers: [
-        tf.layers.dense({ units: 256, activation: 'gelu' }),
-        tf.layers.dense({ units: 256, activation: 'gelu' }),
-        tf.layers.dense({ units: 1 })
-      ]
-    });
-  }
-  
-  async act(observation) {
-    // Sample action from policy
-  }
-  
-  async observe(batch) {
-    // Update policy with PPO objective
-  }
-}`}</pre>
-                </div>
-                <ul className="list-inside list-disc space-y-1 pl-4 text-xs text-slate-400">
-                  <li>Separate policy and value networks for actor-critic</li>
-                  <li>Use GELU activation for smooth gradients</li>
-                  <li>Implement clipped surrogate objective for stable updates</li>
-                  <li>Store rollouts in RolloutBuffer, replay in ReplayBuffer</li>
-                </ul>
-              </div>
-            </article>
-
-            {/* Step 5: Web Workers */}
-            <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h3 className="text-xl font-semibold text-white">
-                <span className="mr-2 text-cyan-400">05</span>
-                Offload Training to Workers
-              </h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Use Web Workers to keep training off the main thread:</p>
-                <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                  <pre>{`// src/workers/trainer.worker.ts
-self.onmessage = async (e) => {
-  const { type, payload } = e.data;
-  
-  switch (type) {
-    case 'INIT':
-      // Initialize algorithm and environment
-      agent = new PpoTfjsAgent();
-      await agent.init(payload);
-      break;
-      
-    case 'STEP':
-      // Run training steps
-      for (let i = 0; i < payload.steps; i++) {
-        const obs = env.reset();
-        const action = await agent.act(obs);
-        const result = env.step(action);
-        await agent.observe(result);
-      }
-      
-      // Send metrics back to main thread
-      self.postMessage({
-        type: 'METRICS',
-        data: agent.getDiagnostics()
-      });
-      break;
-  }
+const handlePrimary = () => {
+  if (status === "running") return pause();
+  if (status === "paused") return resume();
+  return policyReady ? start() : loadPolicy();
 };`}</pre>
                 </div>
-                <p className="text-xs text-slate-400">
-                  This keeps the UI responsive during training. The main thread only handles rendering and user input,
-                  while the worker handles computationally intensive training loops.
+                <p className="text-sm text-slate-300">
+                  UI components never reach into the worker directly—they simply call the store actions. This keeps the
+                  dashboard declarative and makes headless usage straightforward for tests.
                 </p>
-              </div>
-            </article>
-
-            {/* Step 6: State Management */}
-            <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h3 className="text-xl font-semibold text-white">
-                <span className="mr-2 text-cyan-400">06</span>
-                Manage State with Zustand
-              </h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Centralized state for training sessions and metrics:</p>
-                <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                  <pre>{`// src/state/trainingStore.ts
-export const useTrainingStore = create<TrainingState>((set, get) => ({
-  isTraining: false,
-  episodes: [],
-  currentEpisode: 0,
-  metrics: { reward: 0, loss: 0, entropy: 0 },
-  
-  startTraining: () => {
-    const worker = new Worker('/workers/trainer.worker.js');
-    worker.postMessage({ type: 'INIT', payload: {...} });
-    set({ isTraining: true });
-  },
-  
-  stopTraining: () => {
-    set({ isTraining: false });
-  },
-  
-  updateMetrics: (metrics) => {
-    set({ metrics });
-  }
-}));`}</pre>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Zustand provides a simple, performant state solution without Redux boilerplate. Perfect for managing
-                  training state, checkpoints, and real-time metrics.
-                </p>
-              </div>
-            </article>
-
-            {/* Step 7: UI Controls */}
-            <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h3 className="text-xl font-semibold text-white">
-                <span className="mr-2 text-cyan-400">07</span>
-                Build Control Panels
-              </h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Interactive controls using shadcn/ui components:</p>
-                <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                  <pre>{`// src/ui/panels/ControlPanel.tsx
-export function ControlPanel() {
-  const { isTraining, startTraining, stopTraining } = useTrainingStore();
-  
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Training Controls</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <Select label="Algorithm">
-            <SelectItem value="ppo">PPO</SelectItem>
-            <SelectItem value="dqn">DQN</SelectItem>
-          </Select>
-          
-          <Slider label="Learning Rate" min={0.0001} max={0.01} />
-          
-          <Button 
-            onClick={isTraining ? stopTraining : startTraining}
-          >
-            {isTraining ? 'Stop' : 'Start'} Training
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}`}</pre>
-                </div>
-              </div>
-            </article>
-
-            {/* Step 8: Performance Optimization */}
-            <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h3 className="text-xl font-semibold text-white">
-                <span className="mr-2 text-cyan-400">08</span>
-                Optimize Performance
-              </h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Key optimization strategies:</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                    <p className="font-semibold text-slate-200">Typed Arrays</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Use Float32Array for observations, actions, and buffers. Faster than regular arrays.
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                    <p className="font-semibold text-slate-200">WebGL Backend</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      TensorFlow.js uses WebGL for GPU acceleration. Enable with tf.setBackend(&apos;webgl&apos;).
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                    <p className="font-semibold text-slate-200">Batch Operations</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Process multiple transitions at once. Use tf.tidy() to prevent memory leaks.
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                    <p className="font-semibold text-slate-200">Lazy Loading</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Load TensorFlow.js and workers only when needed. Use dynamic imports.
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                    <p className="font-semibold text-slate-200">Memory Management</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Dispose tensors after use. Monitor with tf.memory() and limit buffer sizes.
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                    <p className="font-semibold text-slate-200">Fixed Time Steps</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Decouple training Hz from render FPS. Train at 10-20 Hz, render at 60 FPS.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </article>
-
-            {/* Step 9: Persistence */}
-            <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h3 className="text-xl font-semibold text-white">
-                <span className="mr-2 text-cyan-400">09</span>
-                Add Persistence Layer
-              </h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Save models and training history to IndexedDB:</p>
-                <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                  <pre>{`// src/state/persistence.ts
-export async function saveCheckpoint(name, modelData) {
-  const db = await openDB('gymrl', 1, {
-    upgrade(db) {
-      db.createObjectStore('checkpoints');
-      db.createObjectStore('episodes');
-    }
-  });
-  
-  await db.put('checkpoints', {
-    name,
-    timestamp: Date.now(),
-    model: modelData,
-    metrics: {...}
-  }, name);
-}
-
-export async function loadCheckpoint(name) {
-  const db = await openDB('gymrl', 1);
-  return await db.get('checkpoints', name);
-}`}</pre>
-                </div>
-                <p className="text-xs text-slate-400">
-                  IndexedDB provides large storage capacity for model weights and episode history. Users can save
-                  checkpoints, export to JSON, and reload later.
-                </p>
-              </div>
-            </article>
-
-            {/* Step 10: Testing */}
-            <article className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <h3 className="text-xl font-semibold text-white">
-                <span className="mr-2 text-cyan-400">10</span>
-                Add E2E Testing
-              </h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Automated tests with Playwright:</p>
-                <div className="rounded-lg bg-slate-950/60 p-4 font-mono text-xs">
-                  <pre>{`// tests/training.spec.ts
-test('should start PPO training', async ({ page }) => {
-  await page.goto('/');
-  
-  // Select PPO algorithm
-  await page.click('[data-testid="algorithm-select"]');
-  await page.click('text=PPO');
-  
-  // Start training
-  await page.click('[data-testid="start-training"]');
-  
-  // Wait for metrics to update
-  await page.waitForSelector('[data-testid="reward-metric"]');
-  
-  // Verify training is running
-  const status = await page.textContent('[data-testid="status"]');
-  expect(status).toBe('Training');
-});`}</pre>
-                </div>
-              </div>
-            </article>
-          </section>
-
-          {/* Tech Stack Summary */}
-          <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-            <h2 className="text-2xl font-bold text-white">Complete Tech Stack</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Framework</p>
-                <p className="mt-1 text-sm text-slate-200">Next.js 15.5.5 + React 19</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">RL Library</p>
-                <p className="mt-1 text-sm text-slate-200">TensorFlow.js</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Styling</p>
-                <p className="mt-1 text-sm text-slate-200">Tailwind CSS 4</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">UI Components</p>
-                <p className="mt-1 text-sm text-slate-200">shadcn/ui + Radix</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">State</p>
-                <p className="mt-1 text-sm text-slate-200">Zustand + IndexedDB</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Rendering</p>
-                <p className="mt-1 text-sm text-slate-200">Canvas 2D API</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Charts</p>
-                <p className="mt-1 text-sm text-slate-200">Recharts</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Testing</p>
-                <p className="mt-1 text-sm text-slate-200">Playwright</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Deployment</p>
-                <p className="mt-1 text-sm text-slate-200">Vercel Edge</p>
-              </div>
+              </article>
             </div>
           </section>
 
-          {/* Performance Budget */}
-          <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-            <h2 className="text-2xl font-bold text-white">Performance Budget</h2>
-            <div className="space-y-3 text-sm text-slate-300">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-green-400/30 bg-green-500/10 p-3">
-                  <p className="font-semibold text-green-200">Target Frame Time</p>
-                  <p className="mt-1 text-2xl font-bold text-green-100">&lt; 16ms</p>
-                  <p className="mt-1 text-xs text-green-300">60 FPS for smooth rendering</p>
-                </div>
-                <div className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 p-3">
-                  <p className="font-semibold text-cyan-200">Training Frequency</p>
-                  <p className="mt-1 text-2xl font-bold text-cyan-100">10-20 Hz</p>
-                  <p className="mt-1 text-xs text-cyan-300">Decoupled from render loop</p>
-                </div>
-                <div className="rounded-lg border border-purple-400/30 bg-purple-500/10 p-3">
-                  <p className="font-semibold text-purple-200">Memory Limit</p>
-                  <p className="mt-1 text-2xl font-bold text-purple-100">&lt; 200 MB</p>
-                  <p className="mt-1 text-xs text-purple-300">TensorFlow.js + buffers + UI</p>
-                </div>
-                <div className="rounded-lg border border-yellow-400/30 bg-yellow-500/10 p-3">
-                  <p className="font-semibold text-yellow-200">Initial Load</p>
-                  <p className="mt-1 text-2xl font-bold text-yellow-100">&lt; 2s</p>
-                  <p className="mt-1 text-xs text-yellow-300">Time to interactive on 4G</p>
-                </div>
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full border border-amber-400/50 bg-amber-500/10 p-3 text-amber-300">
+                <Zap className="size-6" />
               </div>
+              <h2 className="text-3xl font-bold text-white">Rendering & UX</h2>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <article className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                <h3 className="text-lg font-semibold text-white">React Three Fiber canvas</h3>
+                <p className="text-sm text-slate-300">
+                  Instanced meshes draw agents and pickups with minimal overhead. Bloom, glows, and volumetric beams are
+                  tuned for the neon aesthetic while keeping frame rate high on ultrabooks.
+                </p>
+                <p className="text-sm text-slate-300">
+                  The render quality toggle swaps shadow maps, SSAO, and spark emitters so demos can run comfortably on
+                  integrated GPUs.
+                </p>
+              </article>
+              <article className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                <h3 className="text-lg font-semibold text-white">Controls & telemetry</h3>
+                <p className="text-sm text-slate-300">
+                  `SimulationControls` exposes difficulty presets, agent counts (1–32), playback speed multipliers, and
+                  file uploads. `SimulationMetrics` surfaces tick, episode, reward, and SPS values via the shared store.
+                </p>
+                <p className="text-sm text-slate-300">
+                  A heuristic fallback keeps the board active until a policy loads, ensuring the playground never feels
+                  empty in demos or screenshots.
+                </p>
+              </article>
             </div>
           </section>
 
-          {/* Back to docs */}
-          <div className="flex justify-center pb-8">
-            <Button
-              asChild
-              variant="outline"
-              className="border-white/20 bg-white/5 text-slate-200 hover:border-cyan-400/60 hover:text-white"
-            >
-              <Link href="/docs">
-                <ArrowLeft className="mr-2 size-4" />
-                Back to Documentation
-              </Link>
-            </Button>
-          </div>
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full border border-sky-400/50 bg-sky-500/10 p-3 text-sky-300">
+                <Rocket className="size-6" />
+              </div>
+              <h2 className="text-3xl font-bold text-white">Extending the lab</h2>
+            </div>
+            <ol className="space-y-3 text-sm text-slate-300">
+              <li>
+                <strong className="text-slate-200">1. Export your policy.</strong> Train offline (PyTorch, JAX, etc.) and
+                convert to ONNX. Drop the file into <code className="rounded bg-white/10 px-1 py-0.5">public/models/</code>.
+              </li>
+              <li>
+                <strong className="text-slate-200">2. Wire custom logic.</strong> Extend the worker with new difficulty
+                presets or reward signals—the store already exposes hooks for dynamic configuration.
+              </li>
+              <li>
+                <strong className="text-slate-200">3. Tune the visuals.</strong> Add instanced geometry, shader tweaks, or
+                brand styling directly in `SimulationCanvas` without touching the inference loop.
+              </li>
+            </ol>
+            <p className="text-sm text-slate-300">
+              Looking for the classic PPO/DQN training stack? It lives in the git history. The modern branch focuses on
+              lightning-fast inference and a polished demo surface.
+            </p>
+          </section>
         </div>
       </div>
     </main>

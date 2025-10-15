@@ -66,8 +66,8 @@ export function ControlPanel() {
     }
     const filename =
       format === "json"
-        ? `gymrl-${Date.now()}.json`
-        : `gymrl-${Date.now()}.tar.zip`;
+        ? `playgroundrl-${Date.now()}.json`
+        : `playgroundrl-${Date.now()}.tar.zip`;
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;

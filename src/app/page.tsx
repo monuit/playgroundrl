@@ -52,25 +52,25 @@ export default function Page() {
         <SimulationCanvas />
       </div>
 
-      {status === "loading" && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950">
-          <p className="flex items-center gap-2 text-slate-300">Loading policy network...</p>
-        </div>
-      )}
-
-      {/* Top Left - Controls */}
-      <div className="pointer-events-none absolute left-8 top-8 z-20">
+      {/* Top Left - Controls - Always visible */}
+      <div className="pointer-events-none absolute left-8 top-8 z-50">
         <div className="pointer-events-auto max-w-sm">
           <SimulationControls />
         </div>
       </div>
 
-      {/* Bottom Right - Telemetry */}
-      <div className="pointer-events-none absolute bottom-8 right-8 z-20">
+      {/* Bottom Right - Telemetry - Always visible */}
+      <div className="pointer-events-none absolute bottom-8 right-8 z-50">
         <div className="pointer-events-auto">
           <SimulationMetrics />
         </div>
       </div>
+
+      {status === "loading" && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950">
+          <p className="flex items-center gap-2 text-slate-300">Loading policy network...</p>
+        </div>
+      )}
 
       {/* Center - Run/Docs Buttons */}
       <animated.div

@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description:
     "In-browser reinforcement learning playground with TensorFlow.js, R3F, and Pyodide backends.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.png",
   },
 };
 

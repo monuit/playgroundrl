@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PlaygroundRL
 
-## Getting Started
+PlaygroundRL is a browser-native reinforcement learning studio with a freshly overhauled neon interface inspired by PPO Bunny. Agents train entirely on the client using TensorFlow.js, while React Three Fiber renders immersive environments and dedicated Web Workers keep the main thread responsive. No backend, no GPU—just WebAssembly, WebGL, and IndexedDB.
 
-First, run the development server:
+## Quick start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000> to launch the dashboard. Flip between environments, pick algorithms, retune hyperparameters, edit reward functions, and manage checkpoints directly in the browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Verify before shipping
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint    # eslint + type-aware rules
+npm run build   # production Next.js bundle
+```
 
-## Learn More
+Both commands should succeed cleanly; they are already tested against the latest visual refresh.
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture overview
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **UI (Next.js + R3F)** — `src/ui` contains the dashboard, environment canvases, control panels, metrics charts, and checkpoint tools.
+- **State (Zustand)** — `src/state/trainingStore.ts` wires UI actions to background workers, persistence, and diagnostics.
+- **Environments** — `src/env` hosts the playable library (Pong, Maze, Tiny Grid, CartPole Lite, Flappy Lite, Mountain Car, Bunny Garden) and shared typings.
+- **Algorithms** — `src/algo/dqn_tfjs.ts` and `src/algo/ppo_tfjs.ts` provide lightweight tfjs implementations with replay buffers, schedules, and diagnostics hooks.
+- **Workers** — `src/workers/trainer.worker.ts` runs PPO/DQN updates off the main thread. Reward validation happens in-sandbox via AST checks before execution.
+- **Persistence** — `src/state/persistence.ts` wraps Dexie/IndexedDB for manifests, metrics, checkpoints, and blobs. `src/state/export_import.ts` exports/imports `.playgroundrl.zip` bundles or pure JSON payloads.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+app/        Next.js app router entry points
+algo/       TensorFlow.js agents + utilities
+env/        Environment implementations & R3F scenes
+state/      Zustand store, IndexedDB helpers
+ui/         Dashboard, control surfaces, charts
+workers/    Trainer + Pyodide (placeholder)
+public/
+  pyodide/  Optional Python runtime assets
+  workers/  Worker bundles served statically
+```
 
-## Deploy on Vercel
+## PPO Bunny visual refresh
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Neon hero experience** — new landing page with layered gradients, feature highlights, and a live 3D HeroPlayground to mirror the PPO Bunny vibe.
+- **Glassmorphism dashboard** — reusable panel styling introduces frosted surfaces, accent lighting, and ambient overlays across control, telemetry, and environment panels.
+- **Playbook and checkpoints** — revamped copy, pastel info tiles, and luminous tables make curriculum notes and checkpoint management easier to scan.
+- **Metric clarity** — episode tables now use color-coded typography on soft glass backgrounds, keeping data legible in the dark theme.
+- **Theme palette** — global CSS variables were retuned for cyan-violet accents and smoothed surfaces that carry through every component.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Recent additions
+
+- Diagnostics: loss, entropy, learning rate, and steps/sec surface live in the dashboard and historical tables.
+- Checkpoint suite: pin, rename, annotate, export, or delete checkpoints with updated metadata timelines.
+- Environment expansion: Mountain Car physics joins Pong, Maze, Tiny Grid, CartPole Lite, Flappy Lite, and Bunny Garden.
+- Reward sandbox hardening: AST guards block unsafe globals, complex scripts, and prototype escapes before execution.
+- JSON export: runs can be archived as `.playgroundrl.json` for easy diffing or sharing, alongside zipped bundles.
+
+## Development notes
+
+- Workers are instantiated with `new Worker(new URL("../workers/trainer.worker.ts", import.meta.url), { type: "module" })`.
+- TensorFlow.js defaults to WebGL; WebGPU automatically enables when available.
+- CSP/COOP/COEP headers live in `next.config.ts` and `vercel.json` so `SharedArrayBuffer` and Wasm work without extra configuration.
+
+PlaygroundRL is built for experimentation—modify environments, hook up new algorithms, or extend the persistence layer. Contributions welcome!

@@ -1,82 +1,160 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Github } from "lucide-react";
-import { TrainingDashboard } from "@/ui/dashboard/TrainingDashboard";
+import { Github, Info, Play } from "lucide-react";
+import { animated, useSpring, config as webConfig } from "@react-spring/web";
+import { SimulationCanvas } from "@/ui/simulation/SimulationCanvas";
+import { SimulationControls } from "@/ui/simulation/SimulationControls";
+import { SimulationMetrics } from "@/ui/simulation/SimulationMetrics";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useSimulationStore } from "@/state/simulationStore";
+import { useShallow } from "zustand/react/shallow";
 
 export default function Page() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  const { status, start, loadPolicy } = useSimulationStore(
+    useShallow((state) => ({
+      status: state.status,
+      start: state.start,
+      loadPolicy: state.loadPolicy,
+    }))
+  );
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    void loadPolicy();
+  }, [loadPolicy]);
+
+  const initialAnimation = useSpring({
+    opacity: status === "ready" ? 1 : 0,
+    transform: status === "ready" ? "translateY(0)" : "translateY(100%)",
+    config: webConfig.wobbly,
+  });
+
+  const runningAnimation = useSpring({
+    opacity: status === "running" ? 1 : 0,
+    transform: status === "running" ? "translateY(0)" : "translateY(-100%)",
+    config: webConfig.wobbly,
+  });
+
+  const loadingAnimation = useSpring({
+    opacity: status === "loading" ? 1 : 0,
+    transform: status === "loading" ? "translateY(0)" : "translateY(-100%)",
+    config: webConfig.default,
+  });
+
+  if (!isMounted) {
+    return null;
+  }
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-      <div className="pointer-events-none absolute inset-0 opacity-70">
-        <div className="absolute -left-64 top-24 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(56,189,248,0.18)_0%,_rgba(15,23,42,0)_70%)] blur-3xl" />
-        <div className="absolute -right-44 -top-32 h-[620px] w-[620px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(168,85,247,0.18)_0%,_rgba(15,23,42,0)_70%)] blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.55),transparent_55%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(14,22,40,0.9),rgba(2,6,23,0.92))]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.08),transparent_60%)] mix-blend-screen" />
-        <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(148,163,184,0.07)_1px,transparent_1px)] bg-[size:100%_40px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,0.05)_1px,transparent_1px)] bg-[size:42px_100%]" />
+    <main className="relative size-full overflow-hidden bg-slate-950 text-slate-100">
+      <div className="fixed inset-0 size-full">
+        <SimulationCanvas />
       </div>
-      <div className="relative z-10 flex min-h-screen flex-col">
-        <header className="">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-8">
-            <Link
-              href="/"
-              className="group inline-flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.4em] text-slate-300"
-            >
-              <span className="grid size-10 place-items-center rounded-full border border-white/10 bg-white/5 text-xs font-semibold shadow-[0_0_30px_-10px_rgba(56,189,248,0.45)] transition group-hover:border-cyan-400/50 group-hover:text-white">
-                PRL
-              </span>
-              PlaygroundRL
+
+      {status === "loading" && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950">
+          <p className="flex items-center gap-2 text-slate-300">Loading policy network...</p>
+        </div>
+      )}
+
+      <animated.div
+        style={loadingAnimation}
+        className="absolute top-16 z-10 flex w-full flex-col items-center gap-4 text-center"
+      >
+        <p className="text-slate-300">Loading ONNX policy...</p>
+      </animated.div>
+
+      <animated.div
+        style={initialAnimation}
+        className="absolute top-16 z-10 flex w-full flex-col items-center gap-4 text-center"
+      >
+        {status === "ready" && (
+          <>
+            <h1 className="text-4xl font-bold italic">PPO Bunny</h1>
+            <div className="flex flex-row gap-2">
+              <Button className="flex flex-row gap-2" onClick={() => void start()} size="lg">
+                Run <Play className="size-4" />
+              </Button>
+              <Dialog>
+                <DialogTrigger>
+                  <Button size="lg" className="flex flex-row gap-2" variant="outline">
+                    Info <Info className="size-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[70%] max-w-[90%] overflow-y-auto bg-card text-sm sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>INFO</DialogTitle>
+                    <DialogDescription className="text-primary/70">
+                      PlaygroundRL is an ONNX inference playground where agents navigate a neon grid world to maximize reward in
+                      your browser—no backend, no GPU.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <h3 className="font-semibold">How does it work?</h3>
+                    <p className="text-sm text-slate-300">
+                      Pre-trained policies (ONNX format) stream decisions to a WebWorker that ticks the grid at 60 Hz. React
+                      Three Fiber renders the agents, and all computation happens client-side using WebGL + WebAssembly.
+                    </p>
+                    <h3 className="font-semibold">Controls</h3>
+                    <ul className="ml-6 list-disc space-y-1 text-sm text-slate-300">
+                      <li>Drag to rotate the camera around the grid</li>
+                      <li>Scroll to zoom in/out</li>
+                      <li>Use the side panels to adjust difficulty, agent count, and speed</li>
+                      <li>Upload your own ONNX policy or load the default from /models</li>
+                    </ul>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </>
+        )}
+      </animated.div>
+
+      <animated.div
+        style={runningAnimation}
+        className="absolute top-16 z-10 flex w-full flex-col items-center gap-4 text-center"
+      >
+        {status === "running" && (
+          <>
+            <h1 className="text-4xl font-bold italic">Agents in motion</h1>
+            <p className="text-sm text-slate-400">Watch the policy stream actions into the grid</p>
+          </>
+        )}
+      </animated.div>
+
+      <div className="pointer-events-none absolute bottom-16 z-10 flex w-full flex-col items-center justify-center gap-4">
+        <div className="pointer-events-auto flex items-center gap-6">
+          <div className="max-w-sm rounded-2xl border border-white/10 bg-slate-950/80 p-4 backdrop-blur">
+            <SimulationControls />
+          </div>
+          <div className="max-w-sm rounded-2xl border border-white/10 bg-slate-950/80 p-4 backdrop-blur">
+            <SimulationMetrics />
+          </div>
+        </div>
+        <div className="pointer-events-auto flex items-center gap-2">
+          <Button asChild variant="ghost" size="sm" className="text-slate-300 hover:text-white">
+            <Link href="/docs">Docs</Link>
+          </Button>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-2 text-slate-300 hover:text-white"
+          >
+            <Link href="https://github.com/boredbedouin/PlaygroundRL" target="_blank" rel="noreferrer">
+              <Github className="size-4" />
+              GitHub
             </Link>
-            <div className="flex items-center gap-3">
-              <Button asChild variant="ghost" className="hidden text-slate-300 hover:text-white sm:inline-flex">
-                <Link href="/docs">Docs</Link>
-              </Button>
-              <Button
-                asChild
-                variant="secondary"
-                className="gap-2 border border-slate-500/40 bg-white/10 text-white hover:bg-white/20"
-              >
-                <Link href="https://github.com/boredbedouin/PlaygroundRL" target="_blank" rel="noreferrer">
-                  <Github className="size-4" />
-                  GitHub
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        <section className="mx-auto w-full max-w-5xl px-6 pb-12">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.4em] text-slate-300">
-              Browser-native RL Playground
-            </div>
-            <div className="space-y-4">
-              <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">PlaygroundRL</h1>
-              <p className="max-w-2xl text-base text-slate-200 sm:text-lg">
-                Load ONNX policies straight into your browser and orbit around a living grid world. Inspect telemetry, tweak
-                parameters, and watch agents learn without leaving the tab.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.35em] text-slate-300">
-              <Link
-                href="#playground"
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 hover:border-cyan-400/40 hover:text-white"
-              >
-                Enter Playground
-              </Link>
-              <Link
-                href="/docs"
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 hover:border-cyan-400/40 hover:text-white"
-              >
-                Docs
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section id="playground" className="relative flex-1">
-          <TrainingDashboard />
-        </section>
+          </Button>
+        </div>
       </div>
     </main>
   );

@@ -13,7 +13,10 @@ interface SimulationCanvasProps {
   className?: string;
 }
 
-export function SimulationCanvas({ className }: SimulationCanvasProps) {
+// Main export for compatibility
+export { SimulationCanvasWrapper as SimulationCanvas } from "./SimulationCanvasWrapper";
+
+export function SimulationCanvasComponent({ className }: SimulationCanvasProps) {
   const { frame, renderQuality, environment, level } = useSimulationStore(
     useShallow((state) => ({
       frame: state.frame,

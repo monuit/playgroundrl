@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import HeroShowcase from "@/ui/hero/HeroShowcase";
-import { SimulationCanvas } from "@/ui/simulation/SimulationCanvas";
+import { SimulationCanvasWrapper } from "@/ui/simulation/SimulationCanvasWrapper";
 import { SimulationControls } from "@/ui/simulation/SimulationControls";
 import { SimulationMetrics } from "@/ui/simulation/SimulationMetrics";
 import { useSimulationStore } from "@/state/simulationStore";
@@ -174,7 +174,7 @@ export default function Page() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(8,47,73,0.4),rgba(2,6,23,0.95))]" aria-hidden />
         <div className="relative mx-auto w-full max-w-6xl px-6">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)]">
-            <SimulationCanvas />
+            <SimulationCanvasWrapper />
             <div className="flex flex-col gap-6">
               <SimulationControls />
               {metricsReady ? <SimulationMetrics /> : null}

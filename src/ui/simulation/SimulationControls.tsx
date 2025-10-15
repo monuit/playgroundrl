@@ -3,7 +3,7 @@
 import { useRef, type ChangeEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +80,7 @@ export function SimulationControls() {
             {state.policyReady ? "Policy online" : "Heuristic mode"}
           </Badge>
         </div>
-        <CardTitle className="text-lg font-semibold text-white">Simulation controls</CardTitle>
+        <h2 className="text-lg font-semibold text-white">Simulation controls</h2>
         {state.message ? <p className="text-sm text-slate-300">{state.message}</p> : null}
       </CardHeader>
       <CardContent className="relative space-y-6">

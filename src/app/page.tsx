@@ -13,26 +13,26 @@ import { useShallow } from "zustand/react/shallow";
 
 export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
+  const [metricsReady, setMetricsReady] = useState(false);
 
-  const { status, start, loadPolicy } = useSimulationStore(
+  const { status, start } = useSimulationStore(
     useShallow((state) => ({
       status: state.status,
       start: state.start,
-      loadPolicy: state.loadPolicy,
     }))
   );
 
   useEffect(() => {
     setIsMounted(true);
+    const timer = window.setTimeout(() => {
+      setMetricsReady(true);
+    }, 150);
+    return () => window.clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    void loadPolicy();
-  }, [loadPolicy]);
-
   const initialAnimation = useSpring({
-    opacity: status === "ready" || status === "idle" || status === "error" ? 1 : 0,
-    transform: status === "ready" || status === "idle" || status === "error" ? "translateY(0)" : "translateY(100%)",
+    opacity: status === "running" ? 0 : 1,
+    transform: status === "running" ? "translateY(100%)" : "translateY(0)",
     config: webConfig.wobbly,
   });
 
@@ -48,9 +48,9 @@ export default function Page() {
 
   return (
     <main className="relative size-full overflow-hidden bg-slate-950 text-slate-100">
-      <div className="fixed inset-0 size-full">
+      <div id="playground" className="fixed inset-0 size-full">
         <SimulationCanvas />
-      </div>
+    </div>
 
       {/* Top Left - Controls - Always visible */}
       <div className="pointer-events-none absolute left-8 top-8 z-50">
@@ -62,7 +62,7 @@ export default function Page() {
       {/* Bottom Right - Telemetry - Always visible */}
       <div className="pointer-events-none absolute bottom-8 right-8 z-50">
         <div className="pointer-events-auto">
-          <SimulationMetrics />
+          {metricsReady ? <SimulationMetrics /> : null}
         </div>
       </div>
 
@@ -72,19 +72,19 @@ export default function Page() {
         </div>
       )}
 
-      {/* Center - Run/Docs Buttons */}
+      {/* Center - Hero */}
       <animated.div
         style={initialAnimation}
         className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 text-center"
       >
-        {(status === "ready" || status === "idle" || status === "error") && (
+        {status !== "running" && (
           <div className="pointer-events-auto">
             <h1 className="text-5xl font-bold italic tracking-tight text-white">PlaygroundRL</h1>
-            <p className="text-sm text-slate-400">ONNX inference playground • No backend • No GPU</p>
+            <p className="mt-2 text-base text-slate-300">Load ONNX policies straight into your browser</p>
             {status === "error" && (
               <p className="mt-2 text-xs text-amber-400">Policy not loaded • Using heuristic mode</p>
             )}
-            <div className="flex flex-row gap-3 mt-4">
+            <div className="mt-6 flex flex-row flex-wrap items-center justify-center gap-3">
               <Button
                 className="flex flex-row items-center gap-2 border border-cyan-400/40 bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-500 text-white shadow-[0_20px_60px_-40px_rgba(56,189,248,0.8)] hover:from-cyan-400 hover:to-indigo-500"
                 onClick={() => void start()}
@@ -93,8 +93,23 @@ export default function Page() {
                 <Play className="size-4" />
                 Run
               </Button>
-              <Button asChild variant="outline" size="lg" className="border-white/20 bg-white/5 text-slate-200 hover:border-cyan-400/60 hover:text-white">
-                <Link href="/docs">Docs</Link>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="border-white/20 bg-white/5 text-slate-200 hover:border-cyan-400/60 hover:text-white"
+              >
+                <Link href="#playground">Enter Playground</Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="border-white/20 bg-white/5 text-slate-200 hover:border-cyan-400/60 hover:text-white"
+              >
+                <Link href="https://github.com/monuit/playgroundrl" target="_blank" rel="noreferrer">
+                  GitHub
+                </Link>
               </Button>
             </div>
           </div>

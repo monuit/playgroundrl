@@ -14,11 +14,12 @@ Open <http://localhost:3000> to launch the live playground. Drop an ONNX policy 
 ### Verify before shipping
 
 ```bash
-npm run lint    # eslint + type-aware rules
-npm run build   # production Next.js bundle
+npm run lint           # eslint + type-aware rules
+npm run build          # production Next.js bundle
+npx playwright test    # end-to-end smoke of the landing playground
 ```
 
-Both commands should succeed cleanly; they are already tested against the latest visual refresh.
+All three commands should succeed cleanly; they are exercised whenever environments or landing UI change.
 
 ## Architecture overview
 
@@ -47,12 +48,22 @@ public/
 - **Heuristic fallback** — if no policy is loaded, the worker supplies a greedy baseline so the playground always feels alive.
 - **Controls refresh** — streamlined panel exposes difficulty, agent counts, playback speed, and policy management in one place.
 
+## Thematic environments
+
+Four neon playgrounds ship as standalone factories under `src/env/` and surface through the in-app selector:
+
+- **Swarm Drones** — lidar-guided micro UAVs chase unexplored neon maze cells while balancing battery, coverage, and collisions.
+- **Reef Guardians** — reef-keeping drones herd bioluminescent shoals away from predators and clear algae bursts to stabilise the biome.
+- **Warehouse Bots** — Kiva-inspired floor units fetch orders, queue for chargers, and avoid routing jams across an instanced grid.
+- **Snowplow Fleet** — municipal plows coordinate salt spreads, fuel burn, and accident hotspots as vehicles weave through the blizzard.
+
 ## Recent additions
 
 - Inference-only loop: policy evaluation now runs in a dedicated worker with deterministic step timing and batched observations.
 - Training dashboard refresh: the legacy panels now wrap the ONNX simulation pipeline and auto-attempt to load `policy.onnx` for instant playback.
 - ONNX adapter: type-safe helper normalises tensors, resolves argmax actions, and supports remote URLs or ArrayBuffer uploads.
 - Adaptive visuals: render quality slider toggles shadows/VFX so the playground shines on high-end rigs and thin laptops alike.
+- Landing intro + Playwright guards: hero copy, controls, and telemetry headings are pinned by automated browser coverage to prevent regressions.
 
 ## Development notes
 

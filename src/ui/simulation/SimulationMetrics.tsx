@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useSimulationStore } from "@/state/simulationStore";
 
 const formatter = new Intl.NumberFormat("en", {
@@ -27,7 +27,9 @@ export function SimulationMetrics() {
     <Card className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 backdrop-blur">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(15,118,110,0.15),transparent_65%)]" />
       <CardHeader className="relative pb-3">
-        <CardTitle className="font-mono text-xs font-medium uppercase tracking-widest text-slate-400">Telemetry</CardTitle>
+        <h2 className="font-mono text-xs font-medium uppercase tracking-widest text-slate-400">
+          PlaygroundRL telemetry
+        </h2>
       </CardHeader>
       <CardContent className="relative space-y-2 font-mono text-xs">
         <div className="flex items-center justify-between border-b border-white/5 pb-1.5">

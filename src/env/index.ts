@@ -1,7 +1,9 @@
 import type { ComponentType } from "react";
-import { createMazeEnv, MazeScene, type MazeRenderableState } from "./maze";
-import { BunnyGardenDefinition } from "./bunny_garden";
 import type { EnvFactory } from "./types";
+import { SwarmDronesDefinition } from "./swarm_drones";
+import { ReefGuardiansDefinition } from "./reef_guardians";
+import { WarehouseBotsDefinition } from "./warehouse_bots";
+import { SnowplowFleetDefinition } from "./snowplow_fleet";
 
 export interface EnvDefinition<State = unknown> extends EnvFactory {
   Scene: ComponentType<{ state: State }>;
@@ -18,14 +20,11 @@ const coerceDefinition = <State,>(
   Scene: definition.Scene as ComponentType<{ state: unknown }>,
 });
 
-export const MazeDefinition: EnvDefinition<MazeRenderableState> = {
-  ...createMazeEnv,
-  Scene: MazeScene,
-};
-
 export const ENVIRONMENTS: EnvRegistryDefinition[] = [
-  coerceDefinition(BunnyGardenDefinition),
-  coerceDefinition(MazeDefinition),
+  coerceDefinition(SwarmDronesDefinition),
+  coerceDefinition(ReefGuardiansDefinition),
+  coerceDefinition(WarehouseBotsDefinition),
+  coerceDefinition(SnowplowFleetDefinition),
 ];
 
 export const ENV_LOOKUP = ENVIRONMENTS.reduce<
@@ -35,8 +34,15 @@ export const ENV_LOOKUP = ENVIRONMENTS.reduce<
   return acc;
 }, {});
 
-export { BunnyGardenDefinition };
-export type { BunnyRenderableState } from "./bunny_garden";
-export type { MazeRenderableState };
+export {
+  SwarmDronesDefinition,
+  ReefGuardiansDefinition,
+  WarehouseBotsDefinition,
+  SnowplowFleetDefinition,
+};
+export type { SwarmDronesRenderableState } from "./swarm_drones";
+export type { ReefGuardiansRenderableState } from "./reef_guardians";
+export type { WarehouseBotsRenderableState } from "./warehouse_bots";
+export type { SnowplowFleetRenderableState } from "./snowplow_fleet";
 export * from "./types";
 

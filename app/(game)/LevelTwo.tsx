@@ -24,22 +24,43 @@ export default function LevelTwo() {
   const [intervalIter, setIntervalIter] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
+
     const loadModels = async () => {
       gameState.setState('LOADING_MODEL')
       try {
         const modelFile = await fetch('/model/actorlvl2.onnx')
         const modelBuffer = await modelFile.arrayBuffer()
-        const policyNetwork = await createModelCpu(modelBuffer)
-        warmupModel(policyNetwork, 14)
-        console.log('Model loaded successfully')
-        setPolicyNetwork(policyNetwork)
+        const session = await createModelCpu(modelBuffer)
+
+        if (cancelled) return
+
+        setPolicyNetwork(session)
         gameState.setState('INITIAL')
+
+        const scheduleWarmup = () => {
+          if (!cancelled) {
+            warmupModel(session, 14)
+          }
+        }
+
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+          ;(window as any).requestIdleCallback(scheduleWarmup)
+        } else {
+          setTimeout(scheduleWarmup, 0)
+        }
+
+        console.log('Model loaded successfully')
       } catch (error) {
         console.error('Error loading the model:', error)
       }
     }
 
     loadModels()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const AnimatedGrid = animated(Grid)
@@ -435,7 +456,7 @@ export default function LevelTwo() {
       setIntervalIter((prev) => prev + 1)
     }
 
-    if (gameState.state === 'RUNNING') {
+    if (gameState.state === 'RUNNING' && policyNetwork) {
       intervalId = setInterval(() => {
         moveAgents()
       }, 175)
@@ -444,7 +465,7 @@ export default function LevelTwo() {
     return () => {
       clearInterval(intervalId)
     }
-  }, [environment.agentEnvironment, gameState.state])
+  }, [environment.agentEnvironment, gameState.state, policyNetwork])
 
   useEffect(() => {
     if (gameState.state === 'CHANGING') {
@@ -454,8 +475,8 @@ export default function LevelTwo() {
           gameState.setChangingText('GO!')
           setTimeout(() => {
             gameState.setState('RUNNING')
-          }, 750)
-        }, 750)
+          }, 400)
+        }, 400)
       }
       startGame()
     }

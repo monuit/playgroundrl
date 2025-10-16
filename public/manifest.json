@@ -1,6 +1,6 @@
 {
-  "name": "R3F Next Starter",
-  "short_name": "R3F Next Starter",
+  "name": "PlaygroundRL",
+  "short_name": "PlaygroundRL",
   "icons": [
     {
       "src": "/icons/apple-touch-icon.png",
@@ -24,6 +24,6 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#040b1a",
+  "background_color": "#040b1a"
 }

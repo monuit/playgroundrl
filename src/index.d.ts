@@ -85,4 +85,6 @@ export type GameState = {
   setChangingText: (changingText: string) => void
   currentLvl: number
   setCurrentLvl: (currentLvl: number) => void
+  avatarMode: 'bunny' | 'drone'
+  setAvatarMode: (avatarMode: 'bunny' | 'drone') => void
 }

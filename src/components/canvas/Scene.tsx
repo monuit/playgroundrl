@@ -14,6 +14,7 @@ export default function Scene() {
   return (
     <Canvas
       shadows
+      frameloop="always"
       dpr={[1, 2]}
       gl={{ antialias: true }}
       style={{

@@ -1,7 +1,7 @@
 'use client';
 
 import { r3f } from '@/lib/scene-portal';
-import { forwardRef, ReactNode, Suspense, useImperativeHandle, useRef } from 'react';
+import { forwardRef, ReactNode, Suspense, useEffect, useImperativeHandle, useRef } from 'react';
 import { OrbitControls, PerspectiveCamera, View as ViewDrei } from '@react-three/drei';
 import { Vector3 } from 'three';
 
@@ -35,6 +35,11 @@ type ViewProps = {
 const View = forwardRef<HTMLDivElement, ViewProps>(({ children, orbit, ...props }, ref) => {
   const localRef = useRef<HTMLDivElement>(null);
   useImperativeHandle(ref, () => localRef.current as HTMLDivElement);
+
+  useEffect(() => {
+    console.log('👀 View component mounted', { hasChildren: !!children });
+    return () => console.log('👀 View component unmounted');
+  }, [children]);
 
   return (
     <>

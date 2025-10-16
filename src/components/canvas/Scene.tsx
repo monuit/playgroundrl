@@ -4,6 +4,7 @@ import { Canvas } from '@react-three/fiber';
 import { Preload } from '@react-three/drei';
 import { r3f } from '@/lib/scene-portal';
 import { ACESFilmicToneMapping } from 'three';
+import { useEffect } from 'react';
 
 /**
  * Persistent Canvas component that renders all 3D content
@@ -11,6 +12,11 @@ import { ACESFilmicToneMapping } from 'three';
  * Content is portaled in via the r3f tunnel from anywhere in the app
  */
 export default function Scene() {
+  useEffect(() => {
+    console.log('🎬 Scene component mounted');
+    return () => console.log('🎬 Scene component unmounted');
+  }, []);
+
   return (
     <Canvas
       shadows

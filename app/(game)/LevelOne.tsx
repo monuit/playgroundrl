@@ -23,22 +23,43 @@ export default function LevelOne() {
   const [policyNetwork, setPolicyNetwork] = useState<InferenceSession>(null)
 
   useEffect(() => {
+    let cancelled = false
+
     const loadModels = async () => {
       gameState.setState('LOADING_MODEL')
       try {
         const modelFile = await fetch('/model/actor.onnx')
         const modelBuffer = await modelFile.arrayBuffer()
-        const policyNetwork = await createModelCpu(modelBuffer)
-        warmupModel(policyNetwork, 5)
-        console.log('Model loaded successfully')
-        setPolicyNetwork(policyNetwork)
+        const session = await createModelCpu(modelBuffer)
+
+        if (cancelled) return
+
+        setPolicyNetwork(session)
         gameState.setState('INITIAL')
+
+        const scheduleWarmup = () => {
+          if (!cancelled) {
+            warmupModel(session, 5)
+          }
+        }
+
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+          ;(window as any).requestIdleCallback(scheduleWarmup)
+        } else {
+          setTimeout(scheduleWarmup, 0)
+        }
+
+        console.log('Model loaded successfully')
       } catch (error) {
         console.error('Error loading the model:', error)
       }
     }
 
     loadModels()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const AnimatedGrid = animated(Grid)
@@ -369,14 +390,14 @@ export default function LevelOne() {
       }
     }
 
-    if (gameState.state === 'RUNNING') {
+    if (gameState.state === 'RUNNING' && policyNetwork) {
       intervalId = setInterval(moveAgents, 100)
     }
 
     return () => {
       clearInterval(intervalId)
     }
-  }, [environment.agentEnvironment, gameState.state])
+  }, [environment.agentEnvironment, gameState.state, policyNetwork])
 
   useEffect(() => {
     if (gameState.state === 'CHANGING') {
@@ -386,8 +407,8 @@ export default function LevelOne() {
           gameState.setChangingText('GO!')
           setTimeout(() => {
             gameState.setState('RUNNING')
-          }, 750)
-        }, 750)
+          }, 400)
+        }, 400)
       }
       startGame()
     }

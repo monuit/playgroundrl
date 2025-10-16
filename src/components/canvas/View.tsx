@@ -33,10 +33,13 @@ const View = forwardRef<ViewProps, any>(({ children, orbit, ...props }, ref) => 
   const localRef = useRef(null)
   useImperativeHandle(ref, () => localRef.current)
 
+  console.log('🔍 View rendering:', { hasChildren: !!children, props });
+
   return (
     <>
       <div ref={localRef} {...props} />
       <r3f.In>
+        {console.log('🎯 Portaling content into Canvas')}
         <ViewDrei track={localRef}>
           {children}
           {orbit && <OrbitControls />}

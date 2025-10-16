@@ -1,4 +1,4 @@
-import { GameState } from '@/index'
+import { AvatarMode, GameState } from '@/index'
 import { create } from 'zustand'
 
 const useGameState = create<GameState>()((set) => ({
@@ -9,7 +9,7 @@ const useGameState = create<GameState>()((set) => ({
   currentLvl: 1,
   setCurrentLvl: (currentLvl: number) => set(() => ({ currentLvl })),
   avatarMode: 'bunny',
-  setAvatarMode: (avatarMode: 'bunny' | 'drone') => set(() => ({ avatarMode })),
+  setAvatarMode: (avatarMode: AvatarMode) => set(() => ({ avatarMode })),
 }))
 
 export default useGameState

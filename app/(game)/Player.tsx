@@ -3,7 +3,9 @@ import { Text3D, useCursor } from '@react-three/drei'
 import { forwardRef, useState } from 'react'
 import Bunny from './Models/Bunny'
 import Heart from './Models/Heart'
+import Drone from './Models/Drone'
 import useEnvironment from './store/useEnvironment'
+import useGameState from './store/useGameState'
 
 export const Player = forwardRef<any, any>((props, ref) => {
   const [hovered, setHovered] = useState(false)
@@ -19,6 +21,7 @@ export const Player = forwardRef<any, any>((props, ref) => {
   })
 
   const environment = useEnvironment()
+  const avatarMode = useGameState((state) => state.avatarMode)
 
   return (
     <animated.group ref={ref} {...props}>
@@ -46,7 +49,7 @@ export const Player = forwardRef<any, any>((props, ref) => {
         position-y={positionY}
         scale={scale}
       >
-        <Bunny />
+        {avatarMode === 'drone' ? <Drone /> : <Bunny />}
       </animated.group>
     </animated.group>
   )

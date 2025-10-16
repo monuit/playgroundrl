@@ -46,12 +46,13 @@ export default function Scene({ ...props }) {
         });
       }}
     >
-      {/* Test mesh directly in Scene - should always be visible */}
-      <mesh position={[0, 0, -10]}>
-        <boxGeometry args={[3, 3, 3]} />
-        <meshStandardMaterial color="lime" />
+      {/* Test mesh directly in Scene - MASSIVE cube right in front of camera */}
+      <mesh position={[0, 0, -5]}>
+        <boxGeometry args={[10, 10, 10]} />
+        <meshBasicMaterial color="lime" />
       </mesh>
-      <ambientLight intensity={1} />
+      <ambientLight intensity={2} />
+      <directionalLight position={[10, 10, 5]} intensity={1} />
       
       <r3f.Out />
       <Preload all />

@@ -1,86 +1,229 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useMemo, useState } from "react";
 import * as THREE from "three";
 import { Canvas } from "@/lib/r3f-canvas";
 import { R3FProvider } from "@/lib/R3FProvider";
 import { OrbitControls, PerspectiveCamera, Grid } from "@react-three/drei";
+import { ENV_LOOKUP } from "@/env";
+import type { LevelType } from "@/types/game";
+import { LevelType as LevelEnum } from "@/types/game";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import type { ActionSpace, EnvObservation } from "@/env/types";
+import { cn } from "@/lib/utils";
 
-const GRID_DIMENSION = 25;
-const TILE_SIZE = 1.25;
+const sanitizeState = <T,>(value: T, depth = 0, seen = new WeakSet<object>()): T => {
+  if (depth > 8) {
+    return value;
+  }
 
-interface TileConfig {
-  position: THREE.Vector3;
-  scale: number;
-  color: THREE.Color;
-}
+  if (typeof value === "number") {
+    if (Number.isFinite(value)) {
+      return value;
+    }
+    if (Number.isNaN(value)) {
+      return 0 as T;
+    }
+    if (value === Infinity || value === -Infinity) {
+      return Math.sign(value) as unknown as T;
+    }
+    return 0 as T;
+  }
 
-function generateTileConfigs(): TileConfig[] {
-  const tiles: TileConfig[] = [];
-  const half = (GRID_DIMENSION - 1) / 2;
+  if (!value || typeof value !== "object") {
+    return value;
+  }
 
-  for (let x = 0; x < GRID_DIMENSION; x += 1) {
-    for (let z = 0; z < GRID_DIMENSION; z += 1) {
-      const offsetX = x - half;
-      const offsetZ = z - half;
-      const distance = Math.sqrt(offsetX ** 2 + offsetZ ** 2);
-      const wave = Math.sin(distance * 0.65) * 0.5 + Math.cos(offsetX * 0.35) * 0.3;
-      const height = THREE.MathUtils.lerp(0.3, 3.6, (wave + 1.3) / 2.6);
-      const hue = THREE.MathUtils.mapLinear(distance, 0, half, 0.55, 0.65);
+  if (seen.has(value as object)) {
+    return value;
+  }
 
-      const color = new THREE.Color();
-      color.setHSL(hue, 0.62, 0.54);
+  seen.add(value as object);
 
-      tiles.push({
-        position: new THREE.Vector3(offsetX * TILE_SIZE, height / 2 - 1.5, offsetZ * TILE_SIZE),
-        scale: height,
-        color,
-      });
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeState(item, depth + 1, seen)) as unknown as T;
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    const ctor = (value as { constructor: { new (iterable: Iterable<number>): unknown } }).constructor;
+    try {
+      const sanitized = Array.from(value as unknown as Iterable<number>, (item) =>
+        Number.isFinite(item) ? item : 0
+      );
+      return new ctor(sanitized) as T;
+    } catch {
+      return value;
     }
   }
 
-  return tiles;
-}
+  const result: Record<string, unknown> = {};
+  Object.entries(value as Record<string, unknown>).forEach(([key, entry]) => {
+    result[key] = sanitizeState(entry, depth + 1, seen);
+  });
+  return result as T;
+};
 
-function TileField() {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const dummyObject = useMemo(() => new THREE.Object3D(), []);
-  const tiles = useMemo(() => generateTileConfigs(), []);
+const observationToRenderable = (observation: EnvObservation | undefined): unknown => {
+  if (!observation) {
+    return undefined;
+  }
+  if (typeof observation === "object" && "metadata" in observation) {
+    const metadata = (observation as { metadata?: unknown }).metadata;
+    return metadata ?? observation;
+  }
+  return observation;
+};
 
-  useEffect(() => {
-    if (!meshRef.current) {
-      return;
+const sampleContinuousAction = (actionSpace: Extract<ActionSpace, { type: "box" }>, stepIndex: number) => {
+  const totalSize = actionSpace.shape.reduce((acc, value) => acc * value, 1);
+  const amplitude = 0.5;
+  const base = Math.sin((stepIndex + 1) * 0.65) * amplitude;
+  return Array.from({ length: totalSize }, (_, idx) => {
+    const variation = Math.cos((stepIndex + idx) * 0.45) * amplitude * 0.4;
+    const value = base + variation;
+    return Math.max(actionSpace.low, Math.min(actionSpace.high, value));
+  });
+};
+
+const sampleAction = (actionSpace: ActionSpace, stepIndex: number) => {
+  if (actionSpace.type === "discrete") {
+    if (!Number.isFinite(actionSpace.n) || actionSpace.n <= 0) {
+      return 0;
     }
+    return stepIndex % actionSpace.n;
+  }
+  return sampleContinuousAction(actionSpace, stepIndex);
+};
 
-    tiles.forEach((tile, index) => {
-      dummyObject.position.copy(tile.position);
-      dummyObject.scale.set(1, tile.scale, 1);
-      dummyObject.updateMatrix();
-      meshRef.current?.setMatrixAt(index, dummyObject.matrix);
-      if (meshRef.current?.setColorAt) {
-        meshRef.current.setColorAt(index, tile.color);
+const HERO_ENVIRONMENTS: Array<{ id: string; label: string }> = [
+  { id: "lumen-bunny", label: "Bunny" },
+  { id: "swarm-drones", label: "Drones" },
+  { id: "reef-guardians", label: "Reef" },
+  { id: "warehouse-bots", label: "Bots" },
+  { id: "snowplow-fleet", label: "Plow" },
+];
+
+const validHeroEnvs = HERO_ENVIRONMENTS.filter((entry) => Boolean(ENV_LOOKUP[entry.id]));
+const DEFAULT_ENVIRONMENT_ID = validHeroEnvs[0]?.id ?? HERO_ENVIRONMENTS[0]?.id ?? "";
+
+const stateCache = new Map<string, unknown>();
+
+const HERO_CONTROL_BASE =
+  "h-7 rounded-full px-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] leading-none transition-all duration-200";
+const HERO_CONTROL_ACTIVE =
+  "border border-white/80 bg-white/95 text-slate-900 shadow-[0_8px_28px_rgba(15,23,42,0.45)]";
+const HERO_CONTROL_INACTIVE =
+  "border border-white/12 bg-white/5 text-white/70 hover:border-white/20 hover:bg-white/10 hover:text-white";
+
+const buildSceneState = (environmentId: string, level: LevelType) => {
+  const cacheKey = `${environmentId}:${level}`;
+  if (stateCache.has(cacheKey)) {
+    return stateCache.get(cacheKey);
+  }
+
+  const definition = ENV_LOOKUP[environmentId];
+  if (!definition) {
+    stateCache.set(cacheKey, undefined);
+    return undefined;
+  }
+
+  try {
+    const env = definition.create();
+    const actionSpace = env.actionSpace;
+    const stepsToSimulate = level === LevelEnum.LEVEL_2 ? 16 : 4;
+
+    const initialObservation: EnvObservation | undefined = env.reset();
+    let latest = initialObservation;
+
+    for (let i = 0; i < stepsToSimulate; i += 1) {
+      const action = sampleAction(actionSpace, i);
+      const result = env.step(action);
+      latest = result?.state ?? latest;
+      if (result?.done) {
+        latest = env.reset();
       }
-    });
-
-    meshRef.current.instanceMatrix.needsUpdate = true;
-    if (meshRef.current.instanceColor) {
-      meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [tiles, dummyObject]);
 
-  return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, tiles.length]} castShadow receiveShadow>
-      <boxGeometry args={[TILE_SIZE * 0.92, 1, TILE_SIZE * 0.92]} />
-      <meshStandardMaterial vertexColors metalness={0.15} roughness={0.55} />
-    </instancedMesh>
-  );
+    const renderable = observationToRenderable(latest);
+    const sanitized = sanitizeState(renderable);
+    stateCache.set(cacheKey, sanitized);
+    return sanitized;
+  } catch (error) {
+    console.warn(`Failed to construct preview state for environment ${environmentId}`, error);
+    stateCache.set(cacheKey, undefined);
+    return undefined;
+  }
 }
 
 export function BunnyHero() {
+  const [activeEnv, setActiveEnv] = useState<string>(DEFAULT_ENVIRONMENT_ID);
+  const [activeLevel, setActiveLevel] = useState<LevelType>(LevelEnum.LEVEL_1);
+
+  const definition = ENV_LOOKUP[activeEnv];
+  const SceneComponent = definition?.Scene ?? null;
+
+  const levelStates = useMemo(() => {
+    if (!definition) {
+      return {} as Record<LevelType, unknown>;
+    }
+    return {
+      [LevelEnum.LEVEL_1]: buildSceneState(activeEnv, LevelEnum.LEVEL_1),
+      [LevelEnum.LEVEL_2]: buildSceneState(activeEnv, LevelEnum.LEVEL_2),
+    } as Record<LevelType, unknown>;
+  }, [definition, activeEnv]);
+
   return (
-    <div className="relative flex min-h-screen w-full flex-col text-white">
+    <div className="relative h-screen w-screen overflow-hidden bg-[#050312]">
+      <div className="pointer-events-auto absolute left-1/2 top-5 z-20 flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/45 p-1 backdrop-blur-xl">
+        {validHeroEnvs.map((env) => {
+          const isActive = env.id === activeEnv;
+          const label = ENV_LOOKUP[env.id]?.name ?? env.label;
+          return (
+            <Button
+              key={env.id}
+              size="sm"
+              variant="ghost"
+              className={cn(
+                HERO_CONTROL_BASE,
+                isActive ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE,
+                "min-w-[72px]"
+              )}
+              onClick={() => {
+                setActiveEnv(env.id);
+                setActiveLevel(LevelEnum.LEVEL_1);
+              }}
+            >
+              {label}
+            </Button>
+          );
+        })}
+      </div>
+
+      <div className="pointer-events-auto absolute right-4 top-5 z-20 flex gap-1 rounded-full border border-white/10 bg-black/45 p-1 backdrop-blur-xl">
+        <Button
+          size="sm"
+          variant="ghost"
+          className={cn(
+            HERO_CONTROL_BASE,
+            activeLevel === LevelEnum.LEVEL_1 ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE
+          )}
+          onClick={() => setActiveLevel(LevelEnum.LEVEL_1)}
+        >
+          Level 1
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className={cn(
+            HERO_CONTROL_BASE,
+            activeLevel === LevelEnum.LEVEL_2 ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE
+          )}
+          onClick={() => setActiveLevel(LevelEnum.LEVEL_2)}
+        >
+          Level 2
+        </Button>
+      </div>
+
       <R3FProvider>
         <Canvas
           className="absolute inset-0 h-full w-full"
@@ -109,8 +252,14 @@ export function BunnyHero() {
 
           <Suspense fallback={null}>
             <group position={[0, -1.2, 0]}>
-              <TileField />
-              <Grid args={[120, 120]} position={[0, -1.5, 0]} cellColor="#222836" sectionColor="#2a3245" fadeDistance={70} />
+              <Grid
+                args={[120, 120]}
+                position={[0, -1.5, 0]}
+                cellColor="#222836"
+                sectionColor="#2a3245"
+                fadeDistance={70}
+              />
+              {SceneComponent ? <SceneComponent state={levelStates[activeLevel] ?? {}} /> : null}
             </group>
           </Suspense>
 
@@ -125,27 +274,6 @@ export function BunnyHero() {
           />
         </Canvas>
       </R3FProvider>
-
-      <div className="relative z-10 flex grow flex-col items-center justify-center px-6 py-16 text-center">
-        <div className="max-w-3xl space-y-6">
-          <span className="text-sm uppercase tracking-[0.4em] text-white/60">Reinforcement Learning Playground</span>
-          <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            Train autonomous agents in richly simulated worlds.
-          </h1>
-          <p className="text-balance text-lg text-white/70 sm:text-xl">
-            Visualize policies, compare algorithms, and iterate faster with a full browser-based RL workbench inspired by the
-            original PPO Bunny experience.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-            <Button size="lg" asChild>
-              <Link href="/docs">Explore the Docs</Link>
-            </Button>
-            <Button size="lg" variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20" asChild>
-              <Link href="#training">Jump into Training</Link>
-            </Button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

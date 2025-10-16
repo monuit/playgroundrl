@@ -1,99 +1,12 @@
 'use client';
 
-import { Suspense, useMemo, useState } from "react";
-import * as THREE from "three";
-import { Canvas } from "@/lib/r3f-canvas";
-import { R3FProvider } from "@/lib/R3FProvider";
-import { OrbitControls, PerspectiveCamera, Grid } from "@react-three/drei";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Button } from "@/components/ui/button";
 import { ENV_LOOKUP } from "@/env";
+import { HeroScene } from "@/ui/hero/HeroScene";
+import { cn } from "@/lib/utils";
 import type { LevelType } from "@/types/game";
 import { LevelType as LevelEnum } from "@/types/game";
-import { Button } from "@/components/ui/button";
-import type { ActionSpace, EnvObservation } from "@/env/types";
-import { cn } from "@/lib/utils";
-
-const sanitizeState = <T,>(value: T, depth = 0, seen = new WeakSet<object>()): T => {
-  if (depth > 8) {
-    return value;
-  }
-
-  if (typeof value === "number") {
-    if (Number.isFinite(value)) {
-      return value;
-    }
-    if (Number.isNaN(value)) {
-      return 0 as T;
-    }
-    if (value === Infinity || value === -Infinity) {
-      return Math.sign(value) as unknown as T;
-    }
-    return 0 as T;
-  }
-
-  if (!value || typeof value !== "object") {
-    return value;
-  }
-
-  if (seen.has(value as object)) {
-    return value;
-  }
-
-  seen.add(value as object);
-
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeState(item, depth + 1, seen)) as unknown as T;
-  }
-
-  if (ArrayBuffer.isView(value)) {
-    const ctor = (value as { constructor: { new (iterable: Iterable<number>): unknown } }).constructor;
-    try {
-      const sanitized = Array.from(value as unknown as Iterable<number>, (item) =>
-        Number.isFinite(item) ? item : 0
-      );
-      return new ctor(sanitized) as T;
-    } catch {
-      return value;
-    }
-  }
-
-  const result: Record<string, unknown> = {};
-  Object.entries(value as Record<string, unknown>).forEach(([key, entry]) => {
-    result[key] = sanitizeState(entry, depth + 1, seen);
-  });
-  return result as T;
-};
-
-const observationToRenderable = (observation: EnvObservation | undefined): unknown => {
-  if (!observation) {
-    return undefined;
-  }
-  if (typeof observation === "object" && "metadata" in observation) {
-    const metadata = (observation as { metadata?: unknown }).metadata;
-    return metadata ?? observation;
-  }
-  return observation;
-};
-
-const sampleContinuousAction = (actionSpace: Extract<ActionSpace, { type: "box" }>, stepIndex: number) => {
-  const totalSize = actionSpace.shape.reduce((acc, value) => acc * value, 1);
-  const amplitude = 0.5;
-  const base = Math.sin((stepIndex + 1) * 0.65) * amplitude;
-  return Array.from({ length: totalSize }, (_, idx) => {
-    const variation = Math.cos((stepIndex + idx) * 0.45) * amplitude * 0.4;
-    const value = base + variation;
-    return Math.max(actionSpace.low, Math.min(actionSpace.high, value));
-  });
-};
-
-const sampleAction = (actionSpace: ActionSpace, stepIndex: number) => {
-  if (actionSpace.type === "discrete") {
-    if (!Number.isFinite(actionSpace.n) || actionSpace.n <= 0) {
-      return 0;
-    }
-    return stepIndex % actionSpace.n;
-  }
-  return sampleContinuousAction(actionSpace, stepIndex);
-};
 
 const HERO_ENVIRONMENTS: Array<{ id: string; label: string }> = [
   { id: "lumen-bunny", label: "Bunny" },
@@ -103,186 +16,395 @@ const HERO_ENVIRONMENTS: Array<{ id: string; label: string }> = [
   { id: "snowplow-fleet", label: "Plow" },
 ];
 
-const validHeroEnvs = HERO_ENVIRONMENTS.filter((entry) => Boolean(ENV_LOOKUP[entry.id]));
-const DEFAULT_ENVIRONMENT_ID = validHeroEnvs[0]?.id ?? HERO_ENVIRONMENTS[0]?.id ?? "";
+const DEFAULT_ACCENT = "#38bdf8";
 
-const stateCache = new Map<string, unknown>();
+type HeroPoint = { x: number; z: number };
 
-type Vec3 = [number, number, number];
-
-interface HeroSceneSettings {
-  sceneScale?: number;
-  groupPosition?: Vec3;
-  sceneOffset?: Vec3;
-  gridPosition?: Vec3;
-  gridFadeDistance?: number;
-  cameraPosition?: Vec3;
-  cameraFov?: number;
-  fogRange?: [number, number];
-  orbitTarget?: Vec3;
+interface HeroLevelConfig {
+  accent?: string;
+  path: HeroPoint[];
+  highlights: HeroPoint[];
 }
 
-type ResolvedHeroSceneSettings = Required<HeroSceneSettings>;
+interface HeroPresentationConfig {
+  accent: string;
+  levels: Partial<Record<LevelType, HeroLevelConfig>>;
+}
 
-const HERO_SCENE_DEFAULT: ResolvedHeroSceneSettings = {
-  sceneScale: 0.04,
-  groupPosition: [0, -0.6, 0],
-  sceneOffset: [0, 0, 0],
-  gridPosition: [0, -1.4, 0],
-  gridFadeDistance: 28,
-  cameraPosition: [8.8, 7.4, 15.6],
-  cameraFov: 40,
-  fogRange: [14, 36],
-  orbitTarget: [0, -0.2, 0],
-};
+const DEFAULT_PATH: HeroPoint[] = [
+  { x: -2.8, z: -1.8 },
+  { x: -1.4, z: -0.4 },
+  { x: 0.2, z: 0.8 },
+  { x: 1.9, z: 1.9 },
+  { x: 3.2, z: 0.4 },
+  { x: 1.2, z: -1.6 },
+];
 
-const HERO_SCENE_SETTINGS: Record<string, HeroSceneSettings> = {
+const DEFAULT_HIGHLIGHTS: HeroPoint[] = [
+  { x: -2.0, z: -1.2 },
+  { x: 0.2, z: 0.4 },
+  { x: 2.4, z: 1.2 },
+];
+
+const HERO_PRESENTATIONS: Record<string, HeroPresentationConfig> = {
   "lumen-bunny": {
-    sceneScale: 0.038,
-    groupPosition: [0, -0.7, 0],
-    gridFadeDistance: 24,
-    cameraPosition: [8.2, 6.8, 14.6],
-    fogRange: [12, 32],
-    orbitTarget: [0, -0.28, 0],
+    accent: "#f97316",
+    levels: {
+      [LevelEnum.LEVEL_1]: {
+        path: [
+          { x: -3.4, z: -2.1 },
+          { x: -1.8, z: -0.2 },
+          { x: -0.1, z: 1.2 },
+          { x: 1.8, z: 2 },
+          { x: 3.1, z: 0.4 },
+          { x: 1.2, z: -1.8 },
+        ],
+        highlights: [
+          { x: -2.4, z: -1.6 },
+          { x: -0.2, z: 0.6 },
+          { x: 2.2, z: 1.6 },
+        ],
+      },
+      [LevelEnum.LEVEL_2]: {
+        accent: "#fb7185",
+        path: [
+          { x: -3.2, z: -2.8 },
+          { x: -1.6, z: -0.8 },
+          { x: 0.4, z: 0.6 },
+          { x: 2.2, z: 1.8 },
+          { x: 3, z: 0.1 },
+          { x: 1.4, z: -2.2 },
+          { x: -0.4, z: -2.6 },
+        ],
+        highlights: [
+          { x: -2.6, z: -2 },
+          { x: -0.4, z: 0.4 },
+          { x: 2.6, z: 1 },
+        ],
+      },
+    },
   },
   "swarm-drones": {
-    sceneScale: 0.032,
-    groupPosition: [0, -0.5, 0],
-    cameraPosition: [9.4, 7.6, 15.2],
-    fogRange: [12, 30],
+    accent: "#38bdf8",
+    levels: {
+      [LevelEnum.LEVEL_1]: {
+        path: [
+          { x: -3.1, z: -2.4 },
+          { x: -1.5, z: -0.8 },
+          { x: 0.1, z: 0.9 },
+          { x: 1.9, z: 1.9 },
+          { x: 3.2, z: 0.3 },
+          { x: 1.1, z: -1.9 },
+        ],
+        highlights: [
+          { x: -2.5, z: -2.2 },
+          { x: 0, z: -0.1 },
+          { x: 2.4, z: 1.6 },
+        ],
+      },
+      [LevelEnum.LEVEL_2]: {
+        accent: "#2dd4bf",
+        path: [
+          { x: -3.4, z: -1.5 },
+          { x: -2, z: 0.8 },
+          { x: -0.6, z: 2.1 },
+          { x: 1, z: 1.6 },
+          { x: 2.4, z: 0.4 },
+          { x: 1.6, z: -1.2 },
+          { x: -0.2, z: -1.8 },
+        ],
+        highlights: [
+          { x: -2.8, z: -1.6 },
+          { x: -0.6, z: 1.6 },
+          { x: 1.8, z: 0.2 },
+        ],
+      },
+    },
   },
   "reef-guardians": {
-    sceneScale: 0.034,
-    cameraPosition: [9.2, 7.3, 15.1],
-    fogRange: [13, 33],
+    accent: "#22d3ee",
+    levels: {
+      [LevelEnum.LEVEL_1]: {
+        path: [
+          { x: -2.8, z: 2.8 },
+          { x: -1.4, z: 1.4 },
+          { x: 0.2, z: 0 },
+          { x: 1.8, z: -1.4 },
+          { x: 3.1, z: -0.2 },
+          { x: 1.4, z: 1.6 },
+        ],
+        highlights: [
+          { x: -2, z: 2.2 },
+          { x: 0, z: 0.2 },
+          { x: 2.4, z: 0.8 },
+        ],
+      },
+      [LevelEnum.LEVEL_2]: {
+        accent: "#38bdf8",
+        path: [
+          { x: -3.2, z: 3.1 },
+          { x: -2, z: 1.6 },
+          { x: -0.6, z: 0.1 },
+          { x: 1.1, z: -1.6 },
+          { x: 2.6, z: -0.6 },
+          { x: 1.6, z: 1.4 },
+          { x: -0.2, z: 2.6 },
+        ],
+        highlights: [
+          { x: -2.4, z: 2.6 },
+          { x: -0.6, z: 0.6 },
+          { x: 2.2, z: 0.4 },
+        ],
+      },
+    },
   },
   "warehouse-bots": {
-    sceneScale: 0.031,
-    groupPosition: [0, -0.48, 0],
-    cameraPosition: [9.1, 7.1, 14.8],
-    fogRange: [12, 32],
+    accent: "#60a5fa",
+    levels: {
+      [LevelEnum.LEVEL_1]: {
+        path: [
+          { x: -3, z: -1.4 },
+          { x: -1.8, z: 0.8 },
+          { x: 0, z: 2.1 },
+          { x: 1.8, z: 0.8 },
+          { x: 3.1, z: -0.6 },
+          { x: 1.4, z: -2.1 },
+        ],
+        highlights: [
+          { x: -2.4, z: -1 },
+          { x: 0, z: 1.8 },
+          { x: 2.4, z: -0.2 },
+        ],
+      },
+      [LevelEnum.LEVEL_2]: {
+        accent: "#38bdf8",
+        path: [
+          { x: -3.3, z: -0.4 },
+          { x: -2, z: 1.4 },
+          { x: -0.4, z: 2.4 },
+          { x: 1.2, z: 1.2 },
+          { x: 2.8, z: -0.2 },
+          { x: 1.6, z: -1.8 },
+          { x: -0.6, z: -1.6 },
+        ],
+        highlights: [
+          { x: -2.6, z: 0.6 },
+          { x: -0.2, z: 2 },
+          { x: 2.2, z: -1 },
+        ],
+      },
+    },
   },
   "snowplow-fleet": {
-    sceneScale: 0.031,
-    cameraPosition: [9.3, 7.4, 15.4],
-    fogRange: [12, 31],
+    accent: "#a5b4fc",
+    levels: {
+      [LevelEnum.LEVEL_1]: {
+        path: [
+          { x: -3.2, z: 0.8 },
+          { x: -1.8, z: 1.8 },
+          { x: 0, z: 1.2 },
+          { x: 1.6, z: 0.2 },
+          { x: 3, z: -1.2 },
+          { x: 1, z: -2 },
+        ],
+        highlights: [
+          { x: -2.2, z: 0.8 },
+          { x: 0.4, z: 1 },
+          { x: 2.4, z: -0.8 },
+        ],
+      },
+      [LevelEnum.LEVEL_2]: {
+        accent: "#c4b5fd",
+        path: [
+          { x: -3.4, z: 1.6 },
+          { x: -2.2, z: 2.4 },
+          { x: -0.6, z: 1.6 },
+          { x: 1, z: 0.6 },
+          { x: 2.6, z: -0.6 },
+          { x: 1.2, z: -2.2 },
+          { x: -1, z: -1.2 },
+        ],
+        highlights: [
+          { x: -2.6, z: 1.6 },
+          { x: -0.4, z: 1.2 },
+          { x: 2, z: -1.2 },
+        ],
+      },
+    },
   },
 };
 
+const defaultLevelConfig: HeroLevelConfig = {
+  accent: DEFAULT_ACCENT,
+  path: DEFAULT_PATH,
+  highlights: DEFAULT_HIGHLIGHTS,
+};
+
+const validHeroEnvs = HERO_ENVIRONMENTS.filter((entry) => Boolean(ENV_LOOKUP[entry.id]))
+  .map((entry) => ({
+    ...entry,
+    label: ENV_LOOKUP[entry.id]?.name ?? entry.label,
+  }));
+
+const DEFAULT_ENVIRONMENT_ID = validHeroEnvs[0]?.id ?? HERO_ENVIRONMENTS[0]?.id ?? "";
+
 const HERO_CONTROL_BASE =
-  "h-7 rounded-full px-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] leading-none transition-all duration-200";
-const HERO_CONTROL_ACTIVE =
-  "border border-white/80 bg-white/95 text-slate-900 shadow-[0_8px_28px_rgba(15,23,42,0.45)]";
+  "h-7 rounded-full px-3 text-[11px] font-semibold uppercase tracking-[0.22em] leading-none transition-all duration-200";
+const HERO_CONTROL_ACTIVE = "shadow-[0_16px_36px_rgba(8,47,73,0.45)]";
 const HERO_CONTROL_INACTIVE =
   "border border-white/12 bg-white/5 text-white/70 hover:border-white/20 hover:bg-white/10 hover:text-white";
 
-const buildSceneState = (environmentId: string, level: LevelType) => {
-  const cacheKey = `${environmentId}:${level}`;
-  if (stateCache.has(cacheKey)) {
-    return stateCache.get(cacheKey);
+const hexToRgba = (hex: string | undefined, alpha: number): string => {
+  if (!hex) {
+    return `rgba(56, 189, 248, ${alpha})`;
   }
-
-  const definition = ENV_LOOKUP[environmentId];
-  if (!definition) {
-    stateCache.set(cacheKey, undefined);
-    return undefined;
+  const normalized = hex.replace("#", "");
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : normalized;
+  if (expanded.length !== 6) {
+    return `rgba(56, 189, 248, ${alpha})`;
   }
+  const r = Number.parseInt(expanded.slice(0, 2), 16);
+  const g = Number.parseInt(expanded.slice(2, 4), 16);
+  const b = Number.parseInt(expanded.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
-  try {
-    const env = definition.create();
-    const actionSpace = env.actionSpace;
-    const stepsToSimulate = level === LevelEnum.LEVEL_2 ? 16 : 4;
-
-    const initialObservation: EnvObservation | undefined = env.reset();
-    let latest = initialObservation;
-
-    for (let i = 0; i < stepsToSimulate; i += 1) {
-      const action = sampleAction(actionSpace, i);
-      const result = env.step(action);
-      latest = result?.state ?? latest;
-      if (result?.done) {
-        latest = env.reset();
-      }
-    }
-
-    const renderable = observationToRenderable(latest);
-    const sanitized = sanitizeState(renderable);
-    stateCache.set(cacheKey, sanitized);
-    return sanitized;
-  } catch (error) {
-    console.warn(`Failed to construct preview state for environment ${environmentId}`, error);
-    stateCache.set(cacheKey, undefined);
-    return undefined;
-  }
-}
+const resolveHeroPresentation = (environmentId: string, level: LevelType) => {
+  const environmentConfig = HERO_PRESENTATIONS[environmentId];
+  const fallbackLevel = environmentConfig?.levels[LevelEnum.LEVEL_1] ?? defaultLevelConfig;
+  const levelConfig = environmentConfig?.levels[level] ?? fallbackLevel;
+  return {
+    accent: levelConfig?.accent ?? fallbackLevel.accent ?? environmentConfig?.accent ?? DEFAULT_ACCENT,
+    path: levelConfig?.path ?? fallbackLevel.path ?? defaultLevelConfig.path,
+    highlights: levelConfig?.highlights ?? fallbackLevel.highlights ?? defaultLevelConfig.highlights,
+  };
+};
 
 export function BunnyHero() {
   const [activeEnv, setActiveEnv] = useState<string>(DEFAULT_ENVIRONMENT_ID);
   const [activeLevel, setActiveLevel] = useState<LevelType>(LevelEnum.LEVEL_1);
+  const [running, setRunning] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
+  const restartTimer = useRef<number | null>(null);
 
-  const definition = ENV_LOOKUP[activeEnv];
-  const SceneComponent = definition?.Scene ?? null;
+  const heroVisual = useMemo(() => resolveHeroPresentation(activeEnv, activeLevel), [activeEnv, activeLevel]);
 
-  const levelStates = useMemo(() => {
-    if (!definition) {
-      return {} as Record<LevelType, unknown>;
+  useEffect(() => {
+    if (restartTimer.current !== null) {
+      window.clearTimeout(restartTimer.current);
+      restartTimer.current = null;
     }
-    return {
-      [LevelEnum.LEVEL_1]: buildSceneState(activeEnv, LevelEnum.LEVEL_1),
-      [LevelEnum.LEVEL_2]: buildSceneState(activeEnv, LevelEnum.LEVEL_2),
-    } as Record<LevelType, unknown>;
-  }, [definition, activeEnv]);
-
-  const heroSettings = useMemo<ResolvedHeroSceneSettings>(() => {
-    const overrides = HERO_SCENE_SETTINGS[activeEnv] ?? {};
-    return {
-      sceneScale: overrides.sceneScale ?? HERO_SCENE_DEFAULT.sceneScale,
-      groupPosition: overrides.groupPosition ?? HERO_SCENE_DEFAULT.groupPosition,
-      sceneOffset: overrides.sceneOffset ?? HERO_SCENE_DEFAULT.sceneOffset,
-      gridPosition: overrides.gridPosition ?? HERO_SCENE_DEFAULT.gridPosition,
-      gridFadeDistance: overrides.gridFadeDistance ?? HERO_SCENE_DEFAULT.gridFadeDistance,
-      cameraPosition: overrides.cameraPosition ?? HERO_SCENE_DEFAULT.cameraPosition,
-      cameraFov: overrides.cameraFov ?? HERO_SCENE_DEFAULT.cameraFov,
-      fogRange: overrides.fogRange ?? HERO_SCENE_DEFAULT.fogRange,
-      orbitTarget: overrides.orbitTarget ?? HERO_SCENE_DEFAULT.orbitTarget,
+    setRunning(false);
+    setResetSignal((value) => value + 1);
+    restartTimer.current = window.setTimeout(() => {
+      setRunning(true);
+      restartTimer.current = null;
+    }, 380);
+    return () => {
+      if (restartTimer.current !== null) {
+        window.clearTimeout(restartTimer.current);
+        restartTimer.current = null;
+      }
     };
-  }, [activeEnv]);
+  }, [activeEnv, activeLevel]);
+
+  useEffect(() => {
+    return () => {
+      if (restartTimer.current !== null) {
+        window.clearTimeout(restartTimer.current);
+      }
+    };
+  }, []);
+
+  const accentGlowTop = useMemo(() => hexToRgba(heroVisual.accent, 0.24), [heroVisual.accent]);
+  const accentGlowBottom = useMemo(() => hexToRgba(heroVisual.accent, 0.16), [heroVisual.accent]);
+  const accentBorder = useMemo(() => hexToRgba(heroVisual.accent, 0.22), [heroVisual.accent]);
+  const accentShadow = useMemo(() => hexToRgba(heroVisual.accent, 0.28), [heroVisual.accent]);
+
+  const activeControlStyle = useMemo<CSSProperties>(
+    () => ({
+      background: hexToRgba(heroVisual.accent, 0.9),
+      color: "#031019",
+      borderColor: hexToRgba(heroVisual.accent, 0.38),
+      boxShadow: `0 18px 42px ${hexToRgba(heroVisual.accent, 0.38)}`,
+    }),
+    [heroVisual.accent]
+  );
+  const inactiveControlStyle = useMemo<CSSProperties>(
+    () => ({
+      borderColor: hexToRgba(heroVisual.accent, 0.16),
+      color: "rgba(248, 250, 252, 0.78)",
+      background: "rgba(15, 23, 42, 0.48)",
+    }),
+    [heroVisual.accent]
+  );
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#050312]">
-      <div className="pointer-events-auto absolute left-1/2 top-5 z-20 flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/45 p-1 backdrop-blur-xl">
+      <div className="absolute inset-0">
+        <HeroScene
+          accent={heroVisual.accent}
+          path={heroVisual.path}
+          highlights={heroVisual.highlights}
+          running={running}
+          resetSignal={resetSignal}
+          className="absolute inset-0"
+        />
+        <div
+          className="pointer-events-none absolute inset-0 mix-blend-screen"
+          style={{
+            background: `radial-gradient(circle at 20% 18%, ${accentGlowTop}, transparent 58%)`,
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-0 mix-blend-screen"
+          style={{
+            background: `radial-gradient(circle at 70% 82%, ${accentGlowBottom}, transparent 62%)`,
+          }}
+        />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-[#020617] via-[#020617]/30 to-transparent" />
+      </div>
+
+      <div
+        className="pointer-events-auto absolute left-1/2 top-5 z-30 flex -translate-x-1/2 gap-1 rounded-full border bg-black/40 p-1 backdrop-blur-xl"
+        style={{ borderColor: accentBorder, boxShadow: `0 18px 48px ${accentShadow}` }}
+      >
         {validHeroEnvs.map((env) => {
           const isActive = env.id === activeEnv;
-          const label = ENV_LOOKUP[env.id]?.name ?? env.label;
           return (
             <Button
               key={env.id}
               size="sm"
               variant="ghost"
-              className={cn(
-                HERO_CONTROL_BASE,
-                isActive ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE,
-                "min-w-[72px]"
-              )}
+              className={cn(HERO_CONTROL_BASE, isActive ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE, "min-w-[74px]")}
+              style={isActive ? activeControlStyle : inactiveControlStyle}
               onClick={() => {
                 setActiveEnv(env.id);
                 setActiveLevel(LevelEnum.LEVEL_1);
               }}
             >
-              {label}
+              {env.label}
             </Button>
           );
         })}
       </div>
 
-      <div className="pointer-events-auto absolute right-4 top-5 z-20 flex gap-1 rounded-full border border-white/10 bg-black/45 p-1 backdrop-blur-xl">
+      <div
+        className="pointer-events-auto absolute right-4 top-5 z-30 flex gap-1 rounded-full border bg-black/40 p-1 backdrop-blur-xl"
+        style={{ borderColor: accentBorder, boxShadow: `0 18px 48px ${accentShadow}` }}
+      >
         <Button
           size="sm"
           variant="ghost"
-          className={cn(
-            HERO_CONTROL_BASE,
-            activeLevel === LevelEnum.LEVEL_1 ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE
-          )}
+          className={cn(HERO_CONTROL_BASE, activeLevel === LevelEnum.LEVEL_1 ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE)}
+          style={activeLevel === LevelEnum.LEVEL_1 ? activeControlStyle : inactiveControlStyle}
           onClick={() => setActiveLevel(LevelEnum.LEVEL_1)}
         >
           Level 1
@@ -290,69 +412,13 @@ export function BunnyHero() {
         <Button
           size="sm"
           variant="ghost"
-          className={cn(
-            HERO_CONTROL_BASE,
-            activeLevel === LevelEnum.LEVEL_2 ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE
-          )}
+          className={cn(HERO_CONTROL_BASE, activeLevel === LevelEnum.LEVEL_2 ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE)}
+          style={activeLevel === LevelEnum.LEVEL_2 ? activeControlStyle : inactiveControlStyle}
           onClick={() => setActiveLevel(LevelEnum.LEVEL_2)}
         >
           Level 2
         </Button>
       </div>
-
-      <R3FProvider>
-        <Canvas
-          className="absolute inset-0 h-full w-full"
-          shadows
-          dpr={[1, 1.75]}
-          camera={{ position: heroSettings.cameraPosition, fov: heroSettings.cameraFov }}
-        >
-          <color attach="background" args={["#050312"]} />
-          <fog attach="fog" args={["#050312", heroSettings.fogRange[0], heroSettings.fogRange[1]]} />
-
-          <ambientLight intensity={0.35} />
-          <directionalLight
-            castShadow
-            intensity={1.1}
-            position={[24, 32, 14]}
-            shadow-mapSize-width={2048}
-            shadow-mapSize-height={2048}
-          />
-          <spotLight
-            position={[-18, 18, -8]}
-            angle={0.45}
-            penumbra={0.4}
-            intensity={0.6}
-            color={new THREE.Color().setHSL(0.12, 0.6, 0.6)}
-          />
-
-          <Suspense fallback={null}>
-            <group position={heroSettings.groupPosition} scale={heroSettings.sceneScale}>
-              <Grid
-                args={[120, 120]}
-                position={heroSettings.gridPosition}
-                cellColor="#1e2332"
-                sectionColor="#27324a"
-                fadeDistance={heroSettings.gridFadeDistance}
-              />
-              <group position={heroSettings.sceneOffset}>
-                {SceneComponent ? <SceneComponent state={levelStates[activeLevel] ?? {}} /> : null}
-              </group>
-            </group>
-          </Suspense>
-
-          <PerspectiveCamera makeDefault position={heroSettings.cameraPosition} fov={heroSettings.cameraFov} />
-          <OrbitControls
-            enablePan={false}
-            enableZoom={false}
-            autoRotate
-            autoRotateSpeed={0.45}
-            maxPolarAngle={Math.PI / 2.4}
-            minPolarAngle={Math.PI / 3.4}
-            target={heroSettings.orbitTarget}
-          />
-        </Canvas>
-      </R3FProvider>
     </div>
   );
 }

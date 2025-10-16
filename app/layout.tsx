@@ -9,22 +9,26 @@ const krypton = localFont({ src: '../public/krypton.otf' })
 
 export const metadata: Metadata = {
   appleWebApp: true,
-  metadataBase: new URL('https://ppobunny.vercel.app'),
+  metadataBase: new URL('https://playgroundrl.vercel.app'),
   manifest: '/manifest.json',
-  icons: { apple: 'https://images.smart.wtf/bunny.png' },
-  openGraph: {
-    url: 'https://ppobunny.vercel.app',
-    title: 'PPO Bunny',
-    description: 'Demonstration of PPO on the web',
-    images: ['https://images.smart.wtf/bunnycard.png'],
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/bunny.png',
+    shortcut: '/favicon.ico',
   },
-  title: 'ppobunny.vercel.app',
-  description: 'Demonstration of PPO on the web',
+  openGraph: {
+    url: 'https://playgroundrl.vercel.app',
+    title: 'PlaygroundRL',
+    description: 'An interactive reinforcement learning playground on the web.',
+    images: ['/bunnycard.png'],
+  },
+  title: 'PlaygroundRL',
+  description: 'An interactive reinforcement learning playground on the web.',
   twitter: {
     card: 'summary_large_image',
-    site: 'ppobunny.vercel.app',
-    creator: '@noahgsolomon',
-    images: ['https://images.smart.wtf/bunnycard.png'],
+    site: 'playgroundrl.vercel.app',
+    creator: '@playgroundrl',
+    images: ['/bunnycard.png'],
   },
 }
 

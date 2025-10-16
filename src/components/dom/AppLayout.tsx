@@ -1,28 +1,37 @@
-'use client';
+'use client'
 
-import { ReactNode } from 'react';
-import dynamic from 'next/dynamic';
+import { useRef } from 'react'
+import dynamic from 'next/dynamic'
+const Scene = dynamic(() => import('@/components/canvas/Scene'), { ssr: false })
 
-// Dynamically import Scene to avoid SSR issues
-const Scene = dynamic(() => import('@/components/canvas/Scene'), { ssr: false });
+const Layout = ({ children }) => {
+  const ref = useRef()
 
-interface AppLayoutProps {
-  children: ReactNode;
-}
-
-/**
- * Application layout wrapper that manages the persistent 3D scene
- * This component ensures the Canvas is always mounted and ready to receive
- * 3D content from anywhere in the application via the r3f portal
- */
-export function AppLayout({ children }: AppLayoutProps) {
   return (
-    <>
-      {/* Page content */}
+    <div
+      ref={ref}
+      className='dark bg-background text-foreground overflow-hidden'
+      style={{
+        position: 'relative',
+        width: ' 100%',
+        height: '100%',
+      }}
+    >
       {children}
-      
-      {/* Persistent 3D Scene Canvas - always rendered */}
-      <Scene />
-    </>
-  );
+      <Scene
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          pointerEvents: 'none',
+        }}
+        eventSource={ref}
+        eventPrefix='client'
+      />
+    </div>
+  )
 }
+
+export { Layout }

@@ -24,6 +24,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Reference repositories (ignore completely)
+.reference-ppo-bunny/
+
 # Virtual Environments
 /venv/
 /ENV/

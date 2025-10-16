@@ -1,5 +1,5 @@
-import { PlaygroundHeroSimple } from "@/ui/hero/PlaygroundHeroSimple";
+import { PlaygroundHero } from "@/ui/hero/PlaygroundHero";
 
 export default function Page() {
-  return <PlaygroundHeroSimple />;
+  return <PlaygroundHero />;
 }

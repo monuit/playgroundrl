@@ -1,40 +1,96 @@
-const isDev = process.env.NODE_ENV !== "production";
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+})
+const NodePolyfillPlugin = require('node-polyfill-webpack-plugin')
+const CopyPlugin = require('copy-webpack-plugin')
 
-const scriptSrc = (isDev
-  ? ["'self'", "'unsafe-inline'", "'unsafe-eval'", "'wasm-unsafe-eval'"]
-  : ["'self'", "'unsafe-inline'", "'unsafe-eval'", "'wasm-unsafe-eval'"]
-).join(" ");
-
-const securityHeaders = [
-  {
-    key: "Cross-Origin-Opener-Policy",
-    value: "same-origin",
-  },
-  {
-    key: "Cross-Origin-Embedder-Policy",
-    value: "require-corp",
-  },
-  {
-    key: "Cross-Origin-Resource-Policy",
-    value: "cross-origin",
-  },
-  {
-    key: "Content-Security-Policy",
-    value: `default-src 'self'; script-src ${scriptSrc}; worker-src 'self' blob:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none';`,
-  },
-];
+/**
+ * A fork of 'next-pwa' that has app directory support
+ * @see https://github.com/shadowwalker/next-pwa/issues/424#issuecomment-1332258575
+ */
+const withPWA = require('@ducanh2912/next-pwa').default({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+})
 
 const nextConfig = {
-  reactStrictMode: false, // Temporarily disabled to prevent Scene unmount/remount
-  headers: async () => [
-    {
-      source: "/(.*)",
-      headers: securityHeaders,
-    },
-  ],
-  experimental: {
-    serverSourceMaps: true,
-  },
-};
+  // uncomment the following snippet if using styled components
+  // compiler: {
+  //   styledComponents: true,
+  // },
+  reactStrictMode: true, // Recommended for the `pages` directory, default in `app`.
+  images: {},
+  webpack(config, { isServer }) {
+    if (!isServer) {
+      // We're in the browser build, so we can safely exclude the sharp module
+      config.externals.push('sharp')
+    }
 
-module.exports = nextConfig;
+    config.plugins.push(
+      new NodePolyfillPlugin(),
+      new CopyPlugin({
+        patterns: [
+          {
+            from: './node_modules/onnxruntime-web/dist/ort-wasm.wasm',
+            to: 'static/chunks/app/(game)',
+          },
+          {
+            from: './node_modules/onnxruntime-web/dist/ort-wasm-simd.wasm',
+            to: 'static/chunks/app/(game)',
+          },
+          {
+            from: './model',
+            to: 'static/chunks/app/(game)',
+          },
+        ],
+      }),
+    )
+    // audio support
+    config.module.rules.push({
+      test: /\.(ogg|mp3|wav|mpe?g)$/i,
+      exclude: config.exclude,
+      use: [
+        {
+          loader: require.resolve('url-loader'),
+          options: {
+            limit: config.inlineImageLimit,
+            fallback: require.resolve('file-loader'),
+            publicPath: `${config.assetPrefix}/_next/static/images/`,
+            outputPath: `${isServer ? '../' : ''}static/images/`,
+            name: '[name]-[hash].[ext]',
+            esModule: config.esModule || false,
+          },
+        },
+      ],
+    })
+
+    // shader support
+    config.module.rules.push({
+      test: /\.(glsl|vs|fs|vert|frag)$/,
+      exclude: /node_modules/,
+      use: ['raw-loader', 'glslify-loader'],
+    })
+
+    return config
+  },
+}
+
+const KEYS_TO_OMIT = ['webpackDevMiddleware', 'configOrigin', 'target', 'analyticsId', 'webpack5', 'amp', 'assetPrefix']
+
+module.exports = (_phase, { defaultConfig }) => {
+  const plugins = [[withPWA], [withBundleAnalyzer, {}]]
+
+  const wConfig = plugins.reduce((acc, [plugin, config]) => plugin({ ...acc, ...config }), {
+    ...defaultConfig,
+    ...nextConfig,
+  })
+
+  const finalConfig = {}
+  Object.keys(wConfig).forEach((key) => {
+    if (!KEYS_TO_OMIT.includes(key)) {
+      finalConfig[key] = wConfig[key]
+    }
+  })
+
+  return finalConfig
+}

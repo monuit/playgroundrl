@@ -26,6 +26,7 @@ pip-delete-this-directory.txt
 
 # Reference repositories (ignore completely)
 .reference-ppo-bunny/
+.archive-playgroundrl/
 
 # Virtual Environments
 /venv/
@@ -54,6 +55,7 @@ weights/
 
 # TensorBoard & Logs
 logs/
+logs
 tensorboard/
 runs/
 *.log

@@ -39,7 +39,7 @@ const View = forwardRef<HTMLDivElement, ViewProps>(({ children, orbit, ...props 
   return (
     <>
       {/* This div tracks where the 3D content should render */}
-      <div ref={localRef} {...props} />
+      <div ref={localRef} {...props} style={{ ...props.style, pointerEvents: 'auto' }} />
       {/* Portal the 3D content into the Canvas */}
       <r3f.In>
         <ViewDrei track={localRef as React.RefObject<HTMLElement>}>

@@ -13,7 +13,7 @@ interface CartPoleState {
   thetaDot: number;
 }
 
-interface CartPoleMetadata {
+export interface CartPoleMetadata {
   state: CartPoleState;
   forceMagnitude: number;
   episodeSteps: number;

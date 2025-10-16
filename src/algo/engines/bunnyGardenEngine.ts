@@ -11,6 +11,7 @@ import {
   EnvironmentType,
   BunnyAgent,
   BunnyAction,
+  MovingObstacle,
 } from '@/types/game';
 
 import {
@@ -35,15 +36,7 @@ export class BunnyGardenEngine {
 
   private agents: BunnyAgent[] = [];
   private obstacles: Set<string>;
-  private movingObstacles: Array<{
-    id: string;
-    x: number;
-    y: number;
-    pathX: number[];
-    pathY: number[];
-    speed: number;
-    phase: number;
-  }>;
+  private movingObstacles: MovingObstacle[];
   private level: LevelConfig;
   private timestep = 0;
   private maxSteps = 500;
@@ -51,7 +44,7 @@ export class BunnyGardenEngine {
   constructor(level: LevelConfig) {
     this.level = level;
     this.obstacles = buildObstacleSet(level);
-    this.movingObstacles = level.movingObstacles || [];
+  this.movingObstacles = level.movingObstacles ? [...level.movingObstacles] : [];
 
     // Initialize single bunny agent
     const startPos = level.startPositions[0];

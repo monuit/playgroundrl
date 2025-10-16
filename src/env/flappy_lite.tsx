@@ -13,7 +13,7 @@ interface FlappyState {
   gapY: number;
 }
 
-interface FlappyMetadata {
+export interface FlappyMetadata {
   state: FlappyState;
   gapHeight: number;
   bounds: { top: number; bottom: number };

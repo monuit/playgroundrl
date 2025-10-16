@@ -16,7 +16,7 @@ const GRAVITY = 0.0025;
 const MAX_SPEED = 0.07;
 const TRACK_SCALE = 6;
 
-interface MountainCarMetadata {
+export interface MountainCarMetadata {
   position: number;
   velocity: number;
   goal: number;

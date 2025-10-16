@@ -10,6 +10,7 @@ import {
   LevelConfig,
   GRID_MAX,
   GRID_ORIGIN,
+  MovingObstacle,
 } from '@/types/game';
 
 /**
@@ -86,15 +87,7 @@ export function isBlockedByAgent(
  * Update moving obstacles position based on timestep
  */
 export function updateMovingObstacles(
-  movingObstacles: Array<{
-    id: string;
-    x: number;
-    y: number;
-    pathX: number[];
-    pathY: number[];
-    speed: number;
-    phase: number;
-  }>,
+  movingObstacles: MovingObstacle[],
   timestep: number
 ): void {
   for (const mo of movingObstacles) {

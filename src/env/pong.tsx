@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Billboard,
   Edges,
@@ -12,7 +14,8 @@ import {
 import { useFrame } from "@react-three/fiber";
 import { memo, useMemo, useRef } from "react";
 import { Color, Group } from "three";
-import type { Env, EnvFactory, EnvObservation, EnvStepResult } from "./types";
+import type { Env, EnvObservation, EnvStepResult } from "./types";
+import type { EnvDefinition } from "./index";
 
 const ARENA_WIDTH = 800;
 const ARENA_HEIGHT = 400;
@@ -173,13 +176,6 @@ class PongEnv implements Env {
     };
   }
 }
-
-export const createPongEnv: EnvFactory = {
-  id: "pong",
-  name: "Pong",
-  description: "Classic Pong with discrete actions (up, stay, down).",
-  create: () => new PongEnv(),
-};
 
 interface PaddleProps {
   color: string;
@@ -396,3 +392,11 @@ export const PongScene = memo(function PongScene({
     </>
   );
 });
+
+export const PongDefinition: EnvDefinition<PongRenderableState> = {
+  id: "pong",
+  name: "Pong",
+  description: "Classic Pong with discrete actions (up, stay, down).",
+  create: () => new PongEnv(),
+  Scene: PongScene,
+};

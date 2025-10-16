@@ -1,7 +1,10 @@
+"use client";
+
 import { useFrame } from "@react-three/fiber";
 import { memo, useMemo, useRef } from "react";
 import type { Mesh } from "three";
-import type { Env, EnvFactory, EnvObservation, EnvStepResult } from "./types";
+import type { Env, EnvObservation, EnvStepResult } from "./types";
+import type { EnvDefinition } from "./index";
 
 const CELL_SIZE = 32;
 const GRID_SIZE = 10;
@@ -181,13 +184,6 @@ class MazeEnv implements Env {
   }
 }
 
-export const createMazeEnv: EnvFactory = {
-  id: "maze",
-  name: "Aurora Labyrinth",
-  description: "DFS-generated maze navigation bathed in aurora lighting for crisp planning.",
-  create: () => new MazeEnv(),
-};
-
 const isMazeRenderableState = (value: unknown): value is MazeRenderableState => {
   if (!value || typeof value !== "object") {
     return false;
@@ -198,7 +194,7 @@ const isMazeRenderableState = (value: unknown): value is MazeRenderableState => 
 
 const buildFallbackState = (): MazeRenderableState => {
   try {
-    const env = createMazeEnv.create();
+    const env = new MazeEnv();
     const observation = env.reset();
     if (observation && typeof observation === "object" && "metadata" in observation) {
       const metadata = (observation as { metadata?: unknown }).metadata;
@@ -334,3 +330,12 @@ export const MazeScene = memo(function MazeScene({
     </>
   );
 });
+
+export const MazeDefinition: EnvDefinition<MazeRenderableState> = {
+  id: "maze",
+  name: "Aurora Labyrinth",
+  description: "DFS-generated maze navigation bathed in aurora lighting for crisp planning.",
+  create: () => new MazeEnv(),
+  Scene: MazeScene,
+};
+

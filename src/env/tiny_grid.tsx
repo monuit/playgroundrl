@@ -11,7 +11,7 @@ interface GridPoint {
   y: number;
 }
 
-interface TinyGridMetadata {
+export interface TinyGridMetadata {
   size: number;
   agent: GridPoint;
   goal: GridPoint;

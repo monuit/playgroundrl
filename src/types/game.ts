@@ -23,6 +23,16 @@ export enum LevelType {
 }
 
 export const GRID_SIZE = 25;
+export const GRID_ORIGIN = { x: 0, y: 0 } as const;
+export const GRID_MAX = { x: GRID_SIZE - 1, y: GRID_SIZE - 1 } as const;
+
+// Discrete bunny movement actions used by BunnyGardenEngine
+export enum BunnyAction {
+  UP = 0,
+  DOWN = 1,
+  LEFT = 2,
+  RIGHT = 3,
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // LEVEL CONFIGURATION
@@ -38,7 +48,7 @@ export interface Position3D extends Position {
 }
 
 export interface MovingObstacle extends Position {
-  id?: string;
+  id: string;
   pathX: number[];
   pathY: number[];
   speed: number;
@@ -85,38 +95,40 @@ export interface EnvironmentConfig {
 
 export interface BaseAgent {
   id: string;
-  position: Position;
-  velocity?: Position;
-  rotation?: number;
+  x: number;
+  y: number;
+  reward: number;
+  episodeReturn: number;
+  steps: number;
+  done: boolean;
 }
 
 export interface BunnyAgent extends BaseAgent {
-  type: "bunny";
   energy: number;
 }
 
 export interface DroneAgent extends BaseAgent {
-  type: "drone";
+  angle: number;
   battery: number;
-  altitude: number;
+  visited: Set<string>;
+  altitude?: number;
 }
 
 export interface FishAgent extends BaseAgent {
-  type: "fish";
-  oxygen: number;
-  depth: number;
+  angle: number;
+  energy: number;
 }
 
 export interface BotAgent extends BaseAgent {
-  type: "bot";
-  cargo: number;
-  capacity: number;
+  angle: number;
+  battery: number;
+  carrying: boolean;
 }
 
 export interface PlowAgent extends BaseAgent {
-  type: "plow";
+  angle: number;
   fuel: number;
-  coverage: number;
+  visited: Set<string>;
 }
 
 export type Agent = BunnyAgent | DroneAgent | FishAgent | BotAgent | PlowAgent;

@@ -1,5 +1,5 @@
-import type { LevelConfig } from '@/types/game';
 import { EnvironmentType } from '@/types/game';
+import type { LevelConfig, MovingObstacle } from '@/types/game';
 import {
   buildObstacleSet,
   isBlockedByObstacle,
@@ -30,15 +30,7 @@ export class ReefGuardiansEngine {
 
   private agents: FishAgent[] = [];
   private obstacles: Set<string>;
-  private movingObstacles: Array<{
-    id: string;
-    x: number;
-    y: number;
-    pathX: [number, number];
-    pathY: [number, number];
-    speed: number;
-    phase: number;
-  }>;
+  private movingObstacles: MovingObstacle[];
   private level: LevelConfig;
   private timestep: number = 0;
   private maxSteps: number = 500;
@@ -49,7 +41,7 @@ export class ReefGuardiansEngine {
   constructor(level: LevelConfig) {
     this.level = level;
     this.obstacles = buildObstacleSet(level);
-    this.movingObstacles = level.movingObstacles || [];
+  this.movingObstacles = level.movingObstacles ? [...level.movingObstacles] : [];
     this.startPositions = [
       [5, 5],
       [7, 5],

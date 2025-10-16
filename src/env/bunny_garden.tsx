@@ -4,7 +4,7 @@ import { memo, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line, Sparkles } from "@react-three/drei";
 import type { Group } from "three";
-import type { Env, EnvFactory, EnvObservation, EnvStepResult } from "./types";
+import type { Env, EnvObservation, EnvStepResult } from "./types";
 import type { EnvDefinition } from "./index";
 
 interface Vector2 {
@@ -335,13 +335,6 @@ class BunnyGardenEnv implements Env {
   }
 }
 
-export const createBunnyGardenEnv: EnvFactory = {
-  id: "lumen-bunny",
-  name: "Lumen Valley",
-  description: "Bunnies weave through luminous groves to harvest radiant carrots.",
-  create: () => new BunnyGardenEnv(),
-};
-
 const isRenderableState = (value: unknown): value is BunnyRenderableState => {
   if (!value || typeof value !== "object") {
     return false;
@@ -357,7 +350,7 @@ const isRenderableState = (value: unknown): value is BunnyRenderableState => {
 
 const buildFallbackState = (): BunnyRenderableState => {
   try {
-    const env = createBunnyGardenEnv.create();
+    const env = new BunnyGardenEnv();
     const observation = env.reset();
     if (observation && typeof observation === "object" && "metadata" in observation) {
       const metadata = (observation as { metadata?: unknown }).metadata;
@@ -542,6 +535,9 @@ export const BunnyScene = memo(function BunnyScene({
 });
 
 export const BunnyGardenDefinition: EnvDefinition<BunnyRenderableState> = {
-  ...createBunnyGardenEnv,
+  id: "lumen-bunny",
+  name: "Lumen Valley",
+  description: "Bunnies weave through luminous groves to harvest radiant carrots.",
+  create: () => new BunnyGardenEnv(),
   Scene: BunnyScene,
 };

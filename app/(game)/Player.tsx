@@ -4,6 +4,9 @@ import { forwardRef, useState } from 'react'
 import Bunny from './Models/Bunny'
 import Heart from './Models/Heart'
 import Drone from './Models/Drone'
+import ReefGuardian from './Models/ReefGuardian'
+import WarehouseBot from './Models/WarehouseBot'
+import Snowplow from './Models/Snowplow'
 import useEnvironment from './store/useEnvironment'
 import useGameState from './store/useGameState'
 
@@ -49,7 +52,19 @@ export const Player = forwardRef<any, any>((props, ref) => {
         position-y={positionY}
         scale={scale}
       >
-        {avatarMode === 'drone' ? <Drone /> : <Bunny />}
+        {
+          avatarMode === 'drone' ? (
+            <Drone />
+          ) : avatarMode === 'reef' ? (
+            <ReefGuardian />
+          ) : avatarMode === 'warehouse' ? (
+            <WarehouseBot />
+          ) : avatarMode === 'snowplow' ? (
+            <Snowplow />
+          ) : (
+            <Bunny />
+          )
+        }
       </animated.group>
     </animated.group>
   )

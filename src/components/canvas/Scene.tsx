@@ -18,20 +18,24 @@ export default function Scene() {
   }, []);
 
   return (
-    <Canvas
-      shadows
-      frameloop="always"
-      dpr={[1, 2]}
-      gl={{ antialias: true }}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        pointerEvents: 'none',
-        zIndex: 10,
-      }}
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      pointerEvents: 'none',
+      zIndex: 10,
+    }}>
+      <Canvas
+        shadows
+        frameloop="always"
+        dpr={[1, 2]}
+        gl={{ antialias: true }}
+        style={{
+          width: '100%',
+          height: '100%',
+        }}
       onCreated={(state) => {
         state.gl.toneMapping = ACESFilmicToneMapping;
         state.gl.toneMappingExposure = 1.0;
@@ -75,5 +79,6 @@ export default function Scene() {
       {/* Preload all assets */}
       <Preload all />
     </Canvas>
+    </div>
   );
 }

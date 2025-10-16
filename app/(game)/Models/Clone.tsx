@@ -6,6 +6,9 @@ import useEnvironment from '../store/useEnvironment'
 import { SpringValue, animated } from '@react-spring/three'
 import CloneBunny from '../CloneBunny'
 import CloneDrone from '../CloneDrone'
+import CloneReefGuardian from './CloneReefGuardian'
+import CloneWarehouseBot from './CloneWarehouseBot'
+import CloneSnowplow from './CloneSnowplow'
 import useGameState from '../store/useGameState'
 
 interface CloneProps extends GroupProps {
@@ -52,7 +55,19 @@ export const Clone = forwardRef<any, CloneProps>(({ i, movement, ...groupProps }
         setHovered(false)
       }}
     >
-      {avatarMode === 'drone' ? <CloneDrone /> : <CloneBunny />}
+      {
+        avatarMode === 'drone' ? (
+          <CloneDrone />
+        ) : avatarMode === 'reef' ? (
+          <CloneReefGuardian />
+        ) : avatarMode === 'warehouse' ? (
+          <CloneWarehouseBot />
+        ) : avatarMode === 'snowplow' ? (
+          <CloneSnowplow />
+        ) : (
+          <CloneBunny />
+        )
+      }
     </animated.group>
   )
 })

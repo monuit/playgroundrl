@@ -327,12 +327,12 @@ export function PlaygroundHero() {
       className="relative h-screen w-screen overflow-hidden text-slate-100"
       style={backgroundStyle}
     >
-      <div className="absolute inset-0">
-        <div className="absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-black/40 via-black/10 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-60 bg-gradient-to-t from-black/60 via-black/25 to-transparent" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(15,23,42,0.28),_transparent_62%)]" />
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-black/40 via-black/10 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-60 bg-gradient-to-t from-black/60 via-black/25 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(15,23,42,0.28),_transparent_62%)] pointer-events-none" />
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 pointer-events-none"
           style={{
             background: `radial-gradient(circle at 18% 82%, ${hexToRgba(
               activeConfig.accent.primary,
@@ -341,7 +341,7 @@ export function PlaygroundHero() {
           }}
         />
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 pointer-events-none"
           style={{
             background: `radial-gradient(circle at 78% 18%, ${hexToRgba(
               activeConfig.accent.secondary,
@@ -359,7 +359,8 @@ export function PlaygroundHero() {
               top: 0,
               left: 0,
               right: 0,
-              bottom: 0
+              bottom: 0,
+              zIndex: 1
             }}
           >
             <color attach="background" args={["#030616"]} />

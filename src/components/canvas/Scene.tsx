@@ -30,12 +30,15 @@ export default function Scene() {
         width: '100vw',
         height: '100vh',
         pointerEvents: 'none',
+        zIndex: 10,
       }}
       onCreated={(state) => {
         state.gl.toneMapping = ACESFilmicToneMapping;
         state.gl.toneMappingExposure = 1.0;
         console.log('🎨 Canvas created', state);
         console.log('🎨 Canvas scene children:', state.scene.children);
+        console.log('🎨 Canvas DOM element:', state.gl.domElement);
+        console.log('🎨 Canvas computed style:', window.getComputedStyle(state.gl.domElement));
         // Log every frame to see if scene is updating
         const interval = setInterval(() => {
           console.log('🔄 Frame rendered, scene children count:', state.scene.children.length);

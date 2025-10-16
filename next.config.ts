@@ -27,7 +27,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Temporarily disabled to prevent Scene unmount/remount
   outputFileTracingRoot: __dirname,
   headers: async () => [
     {

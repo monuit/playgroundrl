@@ -10,11 +10,12 @@ const Layout = ({ children }) => {
   return (
     <div
       ref={ref}
-      className='dark bg-background text-foreground overflow-hidden'
+      className='dark text-foreground overflow-hidden'
       style={{
         position: 'relative',
         width: ' 100%',
         height: '100%',
+        background: 'linear-gradient(135deg, #050910 0%, #0d1b2c 45%, #123553 100%)',
       }}
     >
       {children}

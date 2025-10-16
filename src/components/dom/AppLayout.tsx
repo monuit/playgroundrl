@@ -22,7 +22,9 @@ export function AppLayout({ children }: AppLayoutProps) {
       {children}
       
       {/* Persistent 3D Scene Canvas - always rendered */}
-      <Scene />
+      <div style={{ position: 'fixed', inset: 0, zIndex: 10, pointerEvents: 'none' }}>
+        <Scene />
+      </div>
     </>
   );
 }

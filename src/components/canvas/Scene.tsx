@@ -38,7 +38,23 @@ export default function Scene() {
         console.log('🎨 Canvas created', state);
         console.log('🎨 Canvas scene children:', state.scene.children);
         console.log('🎨 Canvas DOM element:', state.gl.domElement);
-        console.log('🎨 Canvas computed style:', window.getComputedStyle(state.gl.domElement));
+        const computedStyle = window.getComputedStyle(state.gl.domElement);
+        console.log('🎨 Canvas z-index:', computedStyle.zIndex);
+        console.log('🎨 Canvas display:', computedStyle.display);
+        console.log('🎨 Canvas visibility:', computedStyle.visibility);
+        console.log('🎨 Canvas opacity:', computedStyle.opacity);
+        console.log('🎨 Canvas position:', computedStyle.position);
+        
+        // Check parent container
+        const parent = state.gl.domElement.parentElement;
+        console.log('🎨 Parent element:', parent);
+        const parentStyle = parent ? window.getComputedStyle(parent) : null;
+        if (parentStyle) {
+          console.log('🎨 Parent z-index:', parentStyle.zIndex);
+          console.log('🎨 Parent display:', parentStyle.display);
+          console.log('🎨 Parent visibility:', parentStyle.visibility);
+        }
+        
         // Log every frame to see if scene is updating
         const interval = setInterval(() => {
           console.log('🔄 Frame rendered, scene children count:', state.scene.children.length);

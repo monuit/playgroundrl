@@ -30,15 +30,26 @@ export default function Scene() {
         width: '100vw',
         height: '100vh',
         pointerEvents: 'none',
-        zIndex: -1,
       }}
       onCreated={(state) => {
         state.gl.toneMapping = ACESFilmicToneMapping;
         state.gl.toneMappingExposure = 1.0;
         console.log('🎨 Canvas created', state);
         console.log('🎨 Canvas scene children:', state.scene.children);
+        // Log every frame to see if scene is updating
+        const interval = setInterval(() => {
+          console.log('🔄 Frame rendered, scene children count:', state.scene.children.length);
+        }, 2000);
+        setTimeout(() => clearInterval(interval), 10000);
       }}
     >
+      {/* Test mesh - should be visible if rendering works */}
+      <mesh position={[0, 0, -5]}>
+        <boxGeometry args={[2, 2, 2]} />
+        <meshStandardMaterial color="red" />
+      </mesh>
+      <ambientLight intensity={1} />
+      
       {/* This is where portaled content appears */}
       <View.Port />
       <r3f.Out />

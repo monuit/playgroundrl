@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { PerspectiveCamera } from "@react-three/drei";
+import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { ENV_LOOKUP } from "@/env";
 import type { ActionSpace, Env, EnvObservation } from "@/env/types";
 import { Button } from "@/components/ui/button";
@@ -327,6 +327,7 @@ export function PlaygroundHeroSimple() {
             <color attach="background" args={["#030616"]} />
             <fog attach="fog" args={["#030616", 35, 110]} />
             <PerspectiveCamera makeDefault position={activeConfig.camera.position} fov={activeConfig.camera.fov} />
+            <OrbitControls enableZoom={true} enablePan={true} enableRotate={true} />
             <Suspense fallback={null}>
               <group
                 position={scenePosition}
@@ -336,13 +337,6 @@ export function PlaygroundHeroSimple() {
                 <SceneComponent state={sceneState ?? fallbackState ?? null} />
               </group>
             </Suspense>
-            
-            {/* Test cube */}
-            <mesh position={[0, 0, -10]}>
-              <boxGeometry args={[5, 5, 5]} />
-              <meshStandardMaterial color="red" />
-            </mesh>
-            <ambientLight intensity={1} />
           </Canvas>
         )}
       </div>

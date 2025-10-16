@@ -5,7 +5,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { config } from '@react-spring/three'
 import { animated, useSpring, config as webConfig } from '@react-spring/web'
 import { PerspectiveCamera, PresentationControls } from '@react-three/drei'
-import { ArrowLeft, ArrowRight, Bot, Info, Rabbit, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bot, Boxes, Fish, Info, Rabbit, Snowflake, Zap } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Lights from './Lights'
@@ -71,12 +71,12 @@ export default function Page() {
   useEffect(() => {
     if (!isMounted) return
 
-    if (gameState.currentLvl === 1 && gameState.avatarMode !== 'bunny') {
+    if (gameState.currentLvl === 1 && gameState.avatarMode === 'drone') {
       gameState.setAvatarMode('bunny')
-    } else if (gameState.currentLvl === 2 && gameState.avatarMode !== 'drone') {
+    } else if (gameState.currentLvl === 2 && gameState.avatarMode === 'bunny') {
       gameState.setAvatarMode('drone')
     }
-  }, [gameState.avatarMode, gameState.currentLvl, gameState.setAvatarMode, isMounted])
+  }, [gameState, isMounted])
 
   if (!isMounted) {
     return null
@@ -245,6 +245,33 @@ export default function Page() {
             >
               <Bot className='size-4' />
               Drones
+            </Button>
+            <Button
+              size='sm'
+              variant={gameState.avatarMode === 'reef' ? 'default' : 'outline'}
+              aria-pressed={gameState.avatarMode === 'reef'}
+              onClick={() => gameState.setAvatarMode('reef')}
+            >
+              <Fish className='size-4' />
+              Reef
+            </Button>
+            <Button
+              size='sm'
+              variant={gameState.avatarMode === 'warehouse' ? 'default' : 'outline'}
+              aria-pressed={gameState.avatarMode === 'warehouse'}
+              onClick={() => gameState.setAvatarMode('warehouse')}
+            >
+              <Boxes className='size-4' />
+              Warehouse
+            </Button>
+            <Button
+              size='sm'
+              variant={gameState.avatarMode === 'snowplow' ? 'default' : 'outline'}
+              aria-pressed={gameState.avatarMode === 'snowplow'}
+              onClick={() => gameState.setAvatarMode('snowplow')}
+            >
+              <Snowflake className='size-4' />
+              Snowplows
             </Button>
           </div>
         </div>

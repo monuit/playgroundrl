@@ -350,7 +350,18 @@ export function PlaygroundHero() {
           }}
         />
         {SceneComponent ? (
-          <View className="absolute inset-0">
+          <View 
+            className="absolute inset-0" 
+            style={{ 
+              width: '100%', 
+              height: '100%',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0
+            }}
+          >
             <color attach="background" args={["#030616"]} />
             <fog attach="fog" args={["#030616", 35, 110]} />
             <PerspectiveCamera makeDefault position={activeConfig.camera.position} fov={activeConfig.camera.fov} />

@@ -15,13 +15,25 @@ import { Perf } from 'r3f-perf'
 import useGameState from './store/useGameState'
 
 import { createModelCpu, runModel, warmupModel } from './runModel'
-import { InferenceSession } from 'onnxruntime-web/wasm'
+import type { InferenceSession } from 'onnxruntime-web'
+
+type Direction = 'left' | 'right' | 'up' | 'down'
 
 export const NUM_AGENTS = 10
+const TILE_COUNT = 625
+const GRID_SIDE = Math.sqrt(TILE_COUNT)
+const TILE_CENTER = (GRID_SIDE - 1) / 2
+const TILE_SPACING = 1.1
+const DIRECTIONS: Direction[] = ['left', 'up', 'right', 'down']
+
+const isBorderTile = (index: number) => {
+  const x = index % GRID_SIDE
+  const y = Math.floor(index / GRID_SIDE)
+  return x < 1 || y < 1 || x >= GRID_SIDE - 1 || y >= GRID_SIDE - 1
+}
 
 export default function LevelTwo() {
-  const [policyNetwork, setPolicyNetwork] = useState<InferenceSession>(null)
-  const [intervalIter, setIntervalIter] = useState(0)
+  const [policyNetwork, setPolicyNetwork] = useState<InferenceSession | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -64,15 +76,12 @@ export default function LevelTwo() {
   }, [])
 
   const AnimatedGrid = animated(Grid)
-  const TILE_COUNT = 625
   const VISION_LENGTH = 1
 
   const [springs, _] = useSprings(TILE_COUNT, (i) => {
-    const row = Math.floor(i / Math.sqrt(TILE_COUNT))
-    const col = i % Math.sqrt(TILE_COUNT)
-    const centerRow = 4.5
-    const centerCol = 4.5
-    const distance = Math.sqrt((row - centerRow) ** 2 + (col - centerCol) ** 2)
+    const row = Math.floor(i / GRID_SIDE)
+    const col = i % GRID_SIDE
+    const distance = Math.sqrt((row - TILE_CENTER) ** 2 + (col - TILE_CENTER) ** 2)
 
     return {
       from: { scale: 0 },
@@ -89,6 +98,7 @@ export default function LevelTwo() {
   })
 
   const player = useRef<Group>()
+  const intervalIterRef = useRef(0)
 
   const environment = useEnvironment()
   const gameState = useGameState()
@@ -96,64 +106,63 @@ export default function LevelTwo() {
   const [mapResetCount, setMapResetCount] = useState(0)
 
   const agentTiles = useMemo(() => {
-    const randTiles = []
+    const takenTiles: number[] = []
     for (let i = 0; i < NUM_AGENTS; i++) {
-      let rand = Math.round(Math.random() * TILE_COUNT - 1)
-      while (
-        randTiles.includes(rand) ||
-        rand % Math.sqrt(TILE_COUNT) < 1 ||
-        Math.floor(rand / Math.sqrt(TILE_COUNT)) < 1 ||
-        rand % Math.sqrt(TILE_COUNT) >= Math.sqrt(TILE_COUNT) - 1 ||
-        Math.floor(rand / Math.sqrt(TILE_COUNT)) >= Math.sqrt(TILE_COUNT) - 1
-      ) {
-        rand = Math.round(Math.random() * TILE_COUNT - 1)
+      let rand = Math.floor(Math.random() * TILE_COUNT)
+      while (takenTiles.includes(rand) || isBorderTile(rand)) {
+        rand = Math.floor(Math.random() * TILE_COUNT)
       }
-      randTiles.push(rand)
+      takenTiles.push(rand)
     }
-    return randTiles
+    return takenTiles
   }, [mapResetCount])
 
+  const tilePositions = useMemo(
+    () =>
+      Array.from({ length: TILE_COUNT }, (_, i) => [
+        (i % GRID_SIDE) * TILE_SPACING,
+        1,
+        Math.floor(i / GRID_SIDE) * TILE_SPACING,
+      ] as [number, number, number]),
+    [],
+  )
+
   const generateTileMap = () => {
-    let holyTile = Math.round(Math.random() * TILE_COUNT - 1)
-    while (
-      holyTile % Math.sqrt(TILE_COUNT) < 1 ||
-      Math.floor(holyTile / Math.sqrt(TILE_COUNT)) < 1 ||
-      holyTile % Math.sqrt(TILE_COUNT) >= Math.sqrt(TILE_COUNT) - 1 ||
-      Math.floor(holyTile / Math.sqrt(TILE_COUNT)) >= Math.sqrt(TILE_COUNT) - 1 ||
-      agentTiles.includes(holyTile)
-    ) {
-      holyTile = Math.round(Math.random() * TILE_COUNT - 1)
+    let holyTile = Math.floor(Math.random() * TILE_COUNT)
+    while (isBorderTile(holyTile) || agentTiles.includes(holyTile)) {
+      holyTile = Math.floor(Math.random() * TILE_COUNT)
     }
 
     environment.setTargetPosition({
-      x: holyTile % Math.sqrt(TILE_COUNT),
-      y: Math.floor(holyTile / Math.sqrt(TILE_COUNT)),
+      x: holyTile % GRID_SIDE,
+      y: Math.floor(holyTile / GRID_SIDE),
     })
 
-    const newTileMap = springs.reduce(
-      (acc, _, i) => {
-        const { tile } = generateTiles(i, agentTiles)
+    const newTileMap: { type: TileType; position: Position }[] = new Array(TILE_COUNT)
 
-        acc.push({
-          type:
-            holyTile === i
-              ? GumTile
-              : i % Math.sqrt(TILE_COUNT) < 1 ||
-                  Math.floor(i / Math.sqrt(TILE_COUNT)) < 1 ||
-                  i % Math.sqrt(TILE_COUNT) >= Math.sqrt(TILE_COUNT) - 1 ||
-                  Math.floor(i / Math.sqrt(TILE_COUNT)) >= Math.sqrt(TILE_COUNT) - 1
-                ? HologramTile
-                : tile === 'GUM'
-                  ? GumTile
-                  : tile === 'HOLOGRAM'
-                    ? HologramTile
-                    : DefaultTile,
-          position: { x: i % Math.sqrt(TILE_COUNT), y: Math.floor(i / Math.sqrt(TILE_COUNT)) },
-        })
-        return acc
-      },
-      [] as { type: TileType; position: Position }[],
-    )
+    for (let i = 0; i < TILE_COUNT; i++) {
+      const { tile } = generateTiles(i, agentTiles)
+      const x = i % GRID_SIDE
+      const y = Math.floor(i / GRID_SIDE)
+
+      let type: TileType
+
+      if (holyTile === i) {
+        type = GumTile
+      } else if (isBorderTile(i) || tile === 'HOLOGRAM') {
+        type = HologramTile
+      } else if (tile === 'GUM') {
+        type = GumTile
+      } else {
+        type = DefaultTile
+      }
+
+      newTileMap[i] = {
+        type,
+        position: { x, y },
+      }
+    }
+
     return newTileMap
   }
 
@@ -172,8 +181,8 @@ export default function LevelTwo() {
       environment.agentEnvironment[i].setPositionY(0.5, i)
       environment.agentEnvironment[i].setPosition(
         {
-          x: agentTiles[i] % Math.sqrt(TILE_COUNT),
-          y: Math.floor(agentTiles[i] / Math.sqrt(TILE_COUNT)),
+          x: agentTiles[i] % GRID_SIDE,
+          y: Math.floor(agentTiles[i] / GRID_SIDE),
         },
         i,
       )
@@ -181,9 +190,9 @@ export default function LevelTwo() {
   }
 
   // MOVE AGENT
-  const move = (direction: 'left' | 'right' | 'up' | 'down', agentIdx: number) => {
+  const move = (direction: Direction, agentIdx: number) => {
     const agent = environment.agentEnvironment[agentIdx]
-    const TILE_COUNT = environment.TILE_COUNT
+    const stride = GRID_SIDE
 
     if (agent.finished) return
 
@@ -191,13 +200,13 @@ export default function LevelTwo() {
 
     switch (direction) {
       case 'left':
-        nextTile = agent.tileMap[agent.position.x - 1 + Math.sqrt(TILE_COUNT) * agent.position.y]
+        nextTile = agent.tileMap[agent.position.x - 1 + stride * agent.position.y]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
         agent.position.x -= 1
-        positionX = agent.positionX - 1.1
+        positionX = agent.positionX - TILE_SPACING
         rotation = -Math.PI * 0.5
         if (nextTileType.type === 'HOLOGRAM') {
           agent.setPositionY(-0.9, agentIdx)
@@ -221,13 +230,13 @@ export default function LevelTwo() {
         break
 
       case 'right':
-        nextTile = agent.tileMap[agent.position.x + 1 + Math.sqrt(TILE_COUNT) * agent.position.y]
+        nextTile = agent.tileMap[agent.position.x + 1 + stride * agent.position.y]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
         agent.position.x += 1
-        positionX = agent.positionX + 1.1
+        positionX = agent.positionX + TILE_SPACING
         rotation = Math.PI * 0.5
         if (nextTileType.type === 'HOLOGRAM') {
           agent.setPositionY(-0.9, agentIdx)
@@ -252,13 +261,13 @@ export default function LevelTwo() {
         break
 
       case 'up':
-        nextTile = agent.tileMap[agent.position.x + Math.sqrt(TILE_COUNT) * (agent.position.y - 1)]
+        nextTile = agent.tileMap[agent.position.x + stride * (agent.position.y - 1)]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
         agent.position.y -= 1
-        positionZ = agent.positionZ - 1.1
+        positionZ = agent.positionZ - TILE_SPACING
         rotation = Math.PI
 
         if (nextTileType.type === 'HOLOGRAM') {
@@ -283,13 +292,13 @@ export default function LevelTwo() {
         break
 
       case 'down':
-        nextTile = agent.tileMap[agent.position.x + Math.sqrt(TILE_COUNT) * (agent.position.y + 1)]
+        nextTile = agent.tileMap[agent.position.x + stride * (agent.position.y + 1)]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
         agent.position.y += 1
-        positionZ = agent.positionZ + 1.1
+        positionZ = agent.positionZ + TILE_SPACING
         rotation = 0
 
         if (nextTileType.type === 'HOLOGRAM') {
@@ -335,8 +344,8 @@ export default function LevelTwo() {
       environment.agentEnvironment[i].setTileMap(clonedTileMap, i)
       environment.agentEnvironment[i].setPosition(
         {
-          x: agentTiles[i] % Math.sqrt(TILE_COUNT),
-          y: Math.floor(agentTiles[i] / Math.sqrt(TILE_COUNT)),
+          x: agentTiles[i] % GRID_SIDE,
+          y: Math.floor(agentTiles[i] / GRID_SIDE),
         },
         i,
       )
@@ -349,8 +358,7 @@ export default function LevelTwo() {
     let intervalId
 
     const moveAgents = async () => {
-      const directions: ('left' | 'right' | 'up' | 'down')[] = ['left', 'up', 'right', 'down']
-
+      if (!policyNetwork) return
       let numFinished = 0
 
       const states: (State & { vision: number[] })[] = []
@@ -358,31 +366,34 @@ export default function LevelTwo() {
       for (const agent of environment.agentEnvironment) {
         const agentPosition = agent.position
 
-        const vision = []
+        const vision: number[] = []
 
         for (let i = -1; i < 2; i++) {
           for (let j = -1; j < 2; j++) {
             const x = agent.position.x + i
             const y = agent.position.y + j
-            vision.push(agent.tileMap[Math.sqrt(TILE_COUNT) * y + x]?.type.type === 'HOLOGRAM' ? 1 : 0)
+            if (x < 0 || y < 0 || x >= GRID_SIDE || y >= GRID_SIDE) {
+              vision.push(1)
+              continue
+            }
+            const tile = agent.tileMap[y * GRID_SIDE + x]
+            vision.push(tile?.type.type === 'HOLOGRAM' ? 1 : 0)
           }
         }
 
+        const normalizedPosX = agentPosition.x / GRID_SIDE
+        const normalizedPosY = agentPosition.y / GRID_SIDE
+        const normalizedTargetX = environment.targetPosition.x / GRID_SIDE
+        const normalizedTargetY = environment.targetPosition.y / GRID_SIDE
+
         states.push({
           vision,
-          posX: agentPosition.x / Math.sqrt(TILE_COUNT),
-          posY: agentPosition.y / Math.sqrt(TILE_COUNT),
-          targetPosX: environment.targetPosition.x / Math.sqrt(TILE_COUNT),
-          targetPosY: environment.targetPosition.y / Math.sqrt(TILE_COUNT),
+          posX: normalizedPosX,
+          posY: normalizedPosY,
+          targetPosX: normalizedTargetX,
+          targetPosY: normalizedTargetY,
           distance: Math.sqrt(
-            Math.pow(
-              environment.targetPosition.x / Math.sqrt(TILE_COUNT) - agentPosition.x / Math.sqrt(TILE_COUNT),
-              2,
-            ) +
-              Math.pow(
-                environment.targetPosition.y / Math.sqrt(TILE_COUNT) - agentPosition.y / Math.sqrt(TILE_COUNT),
-                2,
-              ),
+            Math.pow(normalizedTargetX - normalizedPosX, 2) + Math.pow(normalizedTargetY - normalizedPosY, 2),
           ),
         })
       }
@@ -396,16 +407,17 @@ export default function LevelTwo() {
         state.distance,
       ])
 
-      const [actions, avgTime] = await runModel(policyNetwork, inputData, 14)
+      const [actions] = await runModel(policyNetwork, inputData, 14)
       for (let i = 0; i < NUM_AGENTS; i++) {
         if (environment.agentEnvironment[i].finished) {
           numFinished += 1
         } else {
-          move(directions[actions[i]], i)
+          const actionIdx = Math.max(0, Math.min(DIRECTIONS.length - 1, Math.round(actions[i])))
+          move(DIRECTIONS[actionIdx], i)
         }
       }
 
-      if (intervalIter % 3 === 0) {
+    if (intervalIterRef.current % 3 === 0) {
         const rand = []
 
         for (let i = 0; i < environment.agentEnvironment[environment.currentAgentIdx].tileMap.length; i++) {
@@ -420,8 +432,8 @@ export default function LevelTwo() {
           for (const tile of tileMap) {
             if (
               tile.type.type === 'HOLOGRAM' &&
-              tile.position.x < Math.sqrt(TILE_COUNT) - 1 &&
-              tile.position.y < Math.sqrt(TILE_COUNT) - 1 &&
+              tile.position.x < GRID_SIDE - 1 &&
+              tile.position.y < GRID_SIDE - 1 &&
               tile.position.x > 0 &&
               tile.position.y > 0
             ) {
@@ -439,21 +451,21 @@ export default function LevelTwo() {
                 ).length === 0
               ) {
                 newTileMap[i].type = DefaultTile
-                newTileMap[position.x + position.y * Math.sqrt(TILE_COUNT)].type = HologramTile
+                newTileMap[position.x + position.y * GRID_SIDE].type = HologramTile
               }
             }
             i += 1
           }
           agent.setTileMap(newTileMap, agent.index)
         }
-      }
+  }
 
       if (numFinished >= NUM_AGENTS * 0.8) {
         resetAgentMetrics()
         setMapResetCount((prevCount) => prevCount + 1)
         gameState.setState('CHANGING')
       }
-      setIntervalIter((prev) => prev + 1)
+      intervalIterRef.current += 1
     }
 
     if (gameState.state === 'RUNNING' && policyNetwork) {
@@ -495,7 +507,7 @@ export default function LevelTwo() {
               <animated.mesh
                 scale={props.scale}
                 key={i}
-                position={[(i % Math.sqrt(TILE_COUNT)) * 1.1, 1, Math.floor(i / Math.sqrt(TILE_COUNT)) * 1.1]}
+                position={tilePositions[i]}
               >
                 {agentTiles.includes(i) ? (
                   agentTiles[environment.currentAgentIdx] === i ? (
@@ -519,11 +531,11 @@ export default function LevelTwo() {
                       color={
                         Math.abs(
                           environment.agentEnvironment[environment.currentAgentIdx].position.x -
-                            (i % Math.sqrt(TILE_COUNT)),
+                            (i % GRID_SIDE),
                         ) <= VISION_LENGTH &&
                         Math.abs(
                           environment.agentEnvironment[environment.currentAgentIdx].position.y -
-                            Math.floor(i / Math.sqrt(TILE_COUNT)),
+                            Math.floor(i / GRID_SIDE),
                         ) <= VISION_LENGTH
                           ? '#00ff00'
                           : tileType === 'BOMB'

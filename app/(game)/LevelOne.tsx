@@ -15,12 +15,25 @@ import { Perf } from 'r3f-perf'
 import useGameState from './store/useGameState'
 
 import { createModelCpu, runModel, warmupModel } from './runModel'
-import { InferenceSession } from 'onnxruntime-web/wasm'
+import type { InferenceSession } from 'onnxruntime-web'
+
+type Direction = 'left' | 'right' | 'up' | 'down'
 
 export const NUM_AGENTS = 10
+const TILE_COUNT = 625
+const GRID_SIDE = Math.sqrt(TILE_COUNT)
+const TILE_CENTER = (GRID_SIDE - 1) / 2
+const TILE_SPACING = 1.1
+const DIRECTIONS: Direction[] = ['left', 'up', 'right', 'down']
+
+const isBorderTile = (index: number) => {
+  const x = index % GRID_SIDE
+  const y = Math.floor(index / GRID_SIDE)
+  return x < 1 || y < 1 || x >= GRID_SIDE - 1 || y >= GRID_SIDE - 1
+}
 
 export default function LevelOne() {
-  const [policyNetwork, setPolicyNetwork] = useState<InferenceSession>(null)
+  const [policyNetwork, setPolicyNetwork] = useState<InferenceSession | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -63,14 +76,11 @@ export default function LevelOne() {
   }, [])
 
   const AnimatedGrid = animated(Grid)
-  const TILE_COUNT = 625
 
   const [springs, _] = useSprings(TILE_COUNT, (i) => {
-    const row = Math.floor(i / Math.sqrt(TILE_COUNT))
-    const col = i % Math.sqrt(TILE_COUNT)
-    const centerRow = 4.5
-    const centerCol = 4.5
-    const distance = Math.sqrt((row - centerRow) ** 2 + (col - centerCol) ** 2)
+    const row = Math.floor(i / GRID_SIDE)
+    const col = i % GRID_SIDE
+    const distance = Math.sqrt((row - TILE_CENTER) ** 2 + (col - TILE_CENTER) ** 2)
 
     return {
       from: { scale: 0 },
@@ -94,62 +104,58 @@ export default function LevelOne() {
   const [mapResetCount, setMapResetCount] = useState(0)
 
   const agentTiles = useMemo(() => {
-    const randTiles = []
+    const takenTiles: number[] = []
     for (let i = 0; i < NUM_AGENTS; i++) {
-      let rand = Math.round(Math.random() * TILE_COUNT - 1)
-      while (
-        randTiles.includes(rand) ||
-        rand % Math.sqrt(TILE_COUNT) < 1 ||
-        Math.floor(rand / Math.sqrt(TILE_COUNT)) < 1 ||
-        rand % Math.sqrt(TILE_COUNT) >= Math.sqrt(TILE_COUNT) - 1 ||
-        Math.floor(rand / Math.sqrt(TILE_COUNT)) >= Math.sqrt(TILE_COUNT) - 1
-      ) {
-        rand = Math.round(Math.random() * TILE_COUNT - 1)
+      let rand = Math.floor(Math.random() * TILE_COUNT)
+      while (takenTiles.includes(rand) || isBorderTile(rand)) {
+        rand = Math.floor(Math.random() * TILE_COUNT)
       }
-      randTiles.push(rand)
+      takenTiles.push(rand)
     }
-    return randTiles
+    return takenTiles
   }, [mapResetCount])
 
+  const tilePositions = useMemo(
+    () =>
+      Array.from({ length: TILE_COUNT }, (_, i) => [
+        (i % GRID_SIDE) * TILE_SPACING,
+        1,
+        Math.floor(i / GRID_SIDE) * TILE_SPACING,
+      ] as [number, number, number]),
+    [],
+  )
+
   const generateTileMap = () => {
-    let holyTile = Math.round(Math.random() * TILE_COUNT - 1)
-    while (
-      holyTile % Math.sqrt(TILE_COUNT) < 1 ||
-      Math.floor(holyTile / Math.sqrt(TILE_COUNT)) < 1 ||
-      holyTile % Math.sqrt(TILE_COUNT) >= Math.sqrt(TILE_COUNT) - 1 ||
-      Math.floor(holyTile / Math.sqrt(TILE_COUNT)) >= Math.sqrt(TILE_COUNT) - 1 ||
-      agentTiles.includes(holyTile)
-    ) {
-      holyTile = Math.round(Math.random() * TILE_COUNT - 1)
+    let holyTile = Math.floor(Math.random() * TILE_COUNT)
+    while (isBorderTile(holyTile) || agentTiles.includes(holyTile)) {
+      holyTile = Math.floor(Math.random() * TILE_COUNT)
     }
 
     environment.setTargetPosition({
-      x: holyTile % Math.sqrt(TILE_COUNT),
-      y: Math.floor(holyTile / Math.sqrt(TILE_COUNT)),
+      x: holyTile % GRID_SIDE,
+      y: Math.floor(holyTile / GRID_SIDE),
     })
 
-    const newTileMap = springs.reduce(
-      (acc, _, i) => {
-        const { tile } = generateTiles(i, agentTiles)
+    const newTileMap: { type: TileType; position: Position }[] = new Array(TILE_COUNT)
 
-        acc.push({
-          type:
-            holyTile === i
-              ? GumTile
-              : i % Math.sqrt(TILE_COUNT) < 1 ||
-                  Math.floor(i / Math.sqrt(TILE_COUNT)) < 1 ||
-                  i % Math.sqrt(TILE_COUNT) >= Math.sqrt(TILE_COUNT) - 1 ||
-                  Math.floor(i / Math.sqrt(TILE_COUNT)) >= Math.sqrt(TILE_COUNT) - 1
-                ? HologramTile
-                : tile === 'GUM'
-                  ? GumTile
-                  : DefaultTile,
-          position: { x: i % Math.sqrt(TILE_COUNT), y: Math.floor(i / Math.sqrt(TILE_COUNT)) },
-        })
-        return acc
-      },
-      [] as { type: TileType; position: Position }[],
-    )
+    for (let i = 0; i < TILE_COUNT; i++) {
+      const { tile } = generateTiles(i, agentTiles)
+      const x = i % GRID_SIDE
+      const y = Math.floor(i / GRID_SIDE)
+
+      newTileMap[i] = {
+        type:
+          holyTile === i
+            ? GumTile
+            : isBorderTile(i)
+              ? HologramTile
+              : tile === 'GUM'
+                ? GumTile
+                : DefaultTile,
+        position: { x, y },
+      }
+    }
+
     return newTileMap
   }
 
@@ -168,8 +174,8 @@ export default function LevelOne() {
       environment.agentEnvironment[i].setPositionY(0.5, i)
       environment.agentEnvironment[i].setPosition(
         {
-          x: agentTiles[i] % Math.sqrt(TILE_COUNT),
-          y: Math.floor(agentTiles[i] / Math.sqrt(TILE_COUNT)),
+          x: agentTiles[i] % GRID_SIDE,
+          y: Math.floor(agentTiles[i] / GRID_SIDE),
         },
         i,
       )
@@ -177,9 +183,9 @@ export default function LevelOne() {
   }
 
   // MOVE AGENT
-  const move = (direction: 'left' | 'right' | 'up' | 'down', agentIdx: number) => {
+  const move = (direction: Direction, agentIdx: number) => {
     const agent = environment.agentEnvironment[agentIdx]
-    const TILE_COUNT = environment.TILE_COUNT
+    const stride = GRID_SIDE
 
     if (agent.finished) return
 
@@ -187,13 +193,13 @@ export default function LevelOne() {
 
     switch (direction) {
       case 'left':
-        nextTile = agent.tileMap[agent.position.x - 1 + Math.sqrt(TILE_COUNT) * agent.position.y]
+        nextTile = agent.tileMap[agent.position.x - 1 + stride * agent.position.y]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
         agent.position.x -= 1
-        positionX = agent.positionX - 1.1
+        positionX = agent.positionX - TILE_SPACING
         rotation = -Math.PI * 0.5
         if (nextTileType.type === 'HOLOGRAM') {
           agent.setPositionY(-0.9, agentIdx)
@@ -217,13 +223,13 @@ export default function LevelOne() {
         break
 
       case 'right':
-        nextTile = agent.tileMap[agent.position.x + 1 + Math.sqrt(TILE_COUNT) * agent.position.y]
+        nextTile = agent.tileMap[agent.position.x + 1 + stride * agent.position.y]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
         agent.position.x += 1
-        positionX = agent.positionX + 1.1
+        positionX = agent.positionX + TILE_SPACING
         rotation = Math.PI * 0.5
         if (nextTileType.type === 'HOLOGRAM') {
           agent.setPositionY(-0.9, agentIdx)
@@ -248,13 +254,13 @@ export default function LevelOne() {
         break
 
       case 'up':
-        nextTile = agent.tileMap[agent.position.x + Math.sqrt(TILE_COUNT) * (agent.position.y - 1)]
+        nextTile = agent.tileMap[agent.position.x + stride * (agent.position.y - 1)]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
         agent.position.y -= 1
-        positionZ = agent.positionZ - 1.1
+        positionZ = agent.positionZ - TILE_SPACING
         rotation = Math.PI
 
         if (nextTileType.type === 'HOLOGRAM') {
@@ -279,13 +285,13 @@ export default function LevelOne() {
         break
 
       case 'down':
-        nextTile = agent.tileMap[agent.position.x + Math.sqrt(TILE_COUNT) * (agent.position.y + 1)]
+        nextTile = agent.tileMap[agent.position.x + stride * (agent.position.y + 1)]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
         agent.position.y += 1
-        positionZ = agent.positionZ + 1.1
+        positionZ = agent.positionZ + TILE_SPACING
         rotation = 0
 
         if (nextTileType.type === 'HOLOGRAM') {
@@ -331,8 +337,8 @@ export default function LevelOne() {
       environment.agentEnvironment[i].setTileMap(clonedTileMap, i)
       environment.agentEnvironment[i].setPosition(
         {
-          x: agentTiles[i] % Math.sqrt(TILE_COUNT),
-          y: Math.floor(agentTiles[i] / Math.sqrt(TILE_COUNT)),
+          x: agentTiles[i] % GRID_SIDE,
+          y: Math.floor(agentTiles[i] / GRID_SIDE),
         },
         i,
       )
@@ -345,8 +351,7 @@ export default function LevelOne() {
     let intervalId
 
     const moveAgents = async () => {
-      const directions: ('left' | 'right' | 'up' | 'down')[] = ['left', 'up', 'right', 'down']
-
+      if (!policyNetwork) return
       let numFinished = 0
 
       const states: State[] = []
@@ -374,12 +379,13 @@ export default function LevelOne() {
         state.distance,
       ])
 
-      const [actions, avgTime] = await runModel(policyNetwork, inputData, 5)
+      const [actions] = await runModel(policyNetwork, inputData, 5)
       for (let i = 0; i < NUM_AGENTS; i++) {
         if (environment.agentEnvironment[i].finished) {
           numFinished += 1
         } else {
-          move(directions[actions[i]], i)
+          const actionIdx = Math.max(0, Math.min(DIRECTIONS.length - 1, Math.round(actions[i])))
+          move(DIRECTIONS[actionIdx], i)
         }
       }
 
@@ -427,7 +433,7 @@ export default function LevelOne() {
               <animated.mesh
                 scale={props.scale}
                 key={i}
-                position={[(i % Math.sqrt(TILE_COUNT)) * 1.1, 1, Math.floor(i / Math.sqrt(TILE_COUNT)) * 1.1]}
+                position={tilePositions[i]}
               >
                 {agentTiles.includes(i) ? (
                   agentTiles[environment.currentAgentIdx] === i ? (

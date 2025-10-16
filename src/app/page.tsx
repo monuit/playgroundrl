@@ -1,7 +1,7 @@
 'use client';
 
-import { BunnyHero } from '@/ui/hero/BunnyHero';
+import { PlaygroundHero } from '@/ui/hero/PlaygroundHero';
 
 export default function Page() {
-  return <BunnyHero />;
+  return <PlaygroundHero />;
 }

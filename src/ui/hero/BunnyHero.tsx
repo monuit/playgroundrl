@@ -108,6 +108,67 @@ const DEFAULT_ENVIRONMENT_ID = validHeroEnvs[0]?.id ?? HERO_ENVIRONMENTS[0]?.id 
 
 const stateCache = new Map<string, unknown>();
 
+type Vec3 = [number, number, number];
+
+interface HeroSceneSettings {
+  sceneScale?: number;
+  groupPosition?: Vec3;
+  sceneOffset?: Vec3;
+  gridPosition?: Vec3;
+  gridFadeDistance?: number;
+  cameraPosition?: Vec3;
+  cameraFov?: number;
+  fogRange?: [number, number];
+  orbitTarget?: Vec3;
+}
+
+type ResolvedHeroSceneSettings = Required<HeroSceneSettings>;
+
+const HERO_SCENE_DEFAULT: ResolvedHeroSceneSettings = {
+  sceneScale: 0.04,
+  groupPosition: [0, -0.6, 0],
+  sceneOffset: [0, 0, 0],
+  gridPosition: [0, -1.4, 0],
+  gridFadeDistance: 28,
+  cameraPosition: [8.8, 7.4, 15.6],
+  cameraFov: 40,
+  fogRange: [14, 36],
+  orbitTarget: [0, -0.2, 0],
+};
+
+const HERO_SCENE_SETTINGS: Record<string, HeroSceneSettings> = {
+  "lumen-bunny": {
+    sceneScale: 0.038,
+    groupPosition: [0, -0.7, 0],
+    gridFadeDistance: 24,
+    cameraPosition: [8.2, 6.8, 14.6],
+    fogRange: [12, 32],
+    orbitTarget: [0, -0.28, 0],
+  },
+  "swarm-drones": {
+    sceneScale: 0.032,
+    groupPosition: [0, -0.5, 0],
+    cameraPosition: [9.4, 7.6, 15.2],
+    fogRange: [12, 30],
+  },
+  "reef-guardians": {
+    sceneScale: 0.034,
+    cameraPosition: [9.2, 7.3, 15.1],
+    fogRange: [13, 33],
+  },
+  "warehouse-bots": {
+    sceneScale: 0.031,
+    groupPosition: [0, -0.48, 0],
+    cameraPosition: [9.1, 7.1, 14.8],
+    fogRange: [12, 32],
+  },
+  "snowplow-fleet": {
+    sceneScale: 0.031,
+    cameraPosition: [9.3, 7.4, 15.4],
+    fogRange: [12, 31],
+  },
+};
+
 const HERO_CONTROL_BASE =
   "h-7 rounded-full px-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] leading-none transition-all duration-200";
 const HERO_CONTROL_ACTIVE =
@@ -172,6 +233,21 @@ export function BunnyHero() {
     } as Record<LevelType, unknown>;
   }, [definition, activeEnv]);
 
+  const heroSettings = useMemo<ResolvedHeroSceneSettings>(() => {
+    const overrides = HERO_SCENE_SETTINGS[activeEnv] ?? {};
+    return {
+      sceneScale: overrides.sceneScale ?? HERO_SCENE_DEFAULT.sceneScale,
+      groupPosition: overrides.groupPosition ?? HERO_SCENE_DEFAULT.groupPosition,
+      sceneOffset: overrides.sceneOffset ?? HERO_SCENE_DEFAULT.sceneOffset,
+      gridPosition: overrides.gridPosition ?? HERO_SCENE_DEFAULT.gridPosition,
+      gridFadeDistance: overrides.gridFadeDistance ?? HERO_SCENE_DEFAULT.gridFadeDistance,
+      cameraPosition: overrides.cameraPosition ?? HERO_SCENE_DEFAULT.cameraPosition,
+      cameraFov: overrides.cameraFov ?? HERO_SCENE_DEFAULT.cameraFov,
+      fogRange: overrides.fogRange ?? HERO_SCENE_DEFAULT.fogRange,
+      orbitTarget: overrides.orbitTarget ?? HERO_SCENE_DEFAULT.orbitTarget,
+    };
+  }, [activeEnv]);
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#050312]">
       <div className="pointer-events-auto absolute left-1/2 top-5 z-20 flex -translate-x-1/2 gap-1 rounded-full border border-white/10 bg-black/45 p-1 backdrop-blur-xl">
@@ -229,10 +305,10 @@ export function BunnyHero() {
           className="absolute inset-0 h-full w-full"
           shadows
           dpr={[1, 1.75]}
-          camera={{ position: [14, 12, 26], fov: 45 }}
+          camera={{ position: heroSettings.cameraPosition, fov: heroSettings.cameraFov }}
         >
           <color attach="background" args={["#050312"]} />
-          <fog attach="fog" args={["#050312", 35, 80]} />
+          <fog attach="fog" args={["#050312", heroSettings.fogRange[0], heroSettings.fogRange[1]]} />
 
           <ambientLight intensity={0.35} />
           <directionalLight
@@ -251,19 +327,21 @@ export function BunnyHero() {
           />
 
           <Suspense fallback={null}>
-            <group position={[0, -1.2, 0]}>
+            <group position={heroSettings.groupPosition} scale={heroSettings.sceneScale}>
               <Grid
                 args={[120, 120]}
-                position={[0, -1.5, 0]}
-                cellColor="#222836"
-                sectionColor="#2a3245"
-                fadeDistance={70}
+                position={heroSettings.gridPosition}
+                cellColor="#1e2332"
+                sectionColor="#27324a"
+                fadeDistance={heroSettings.gridFadeDistance}
               />
-              {SceneComponent ? <SceneComponent state={levelStates[activeLevel] ?? {}} /> : null}
+              <group position={heroSettings.sceneOffset}>
+                {SceneComponent ? <SceneComponent state={levelStates[activeLevel] ?? {}} /> : null}
+              </group>
             </group>
           </Suspense>
 
-          <PerspectiveCamera makeDefault position={[0, 12, 28]} fov={45} />
+          <PerspectiveCamera makeDefault position={heroSettings.cameraPosition} fov={heroSettings.cameraFov} />
           <OrbitControls
             enablePan={false}
             enableZoom={false}
@@ -271,6 +349,7 @@ export function BunnyHero() {
             autoRotateSpeed={0.45}
             maxPolarAngle={Math.PI / 2.4}
             minPolarAngle={Math.PI / 3.4}
+            target={heroSettings.orbitTarget}
           />
         </Canvas>
       </R3FProvider>

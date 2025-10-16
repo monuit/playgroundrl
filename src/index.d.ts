@@ -78,6 +78,8 @@ export type AgentObservation = {
   startStepTrajectoryNum: number
 }
 
+export type AvatarMode = 'bunny' | 'drone' | 'reef' | 'warehouse' | 'snowplow'
+
 export type GameState = {
   state: string
   setState: (state: string) => void
@@ -85,6 +87,6 @@ export type GameState = {
   setChangingText: (changingText: string) => void
   currentLvl: number
   setCurrentLvl: (currentLvl: number) => void
-  avatarMode: 'bunny' | 'drone'
-  setAvatarMode: (avatarMode: 'bunny' | 'drone') => void
+  avatarMode: AvatarMode
+  setAvatarMode: (avatarMode: AvatarMode) => void
 }

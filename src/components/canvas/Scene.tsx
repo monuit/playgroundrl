@@ -36,6 +36,7 @@ export default function Scene() {
         state.gl.toneMapping = ACESFilmicToneMapping;
         state.gl.toneMappingExposure = 1.0;
         console.log('🎨 Canvas created', state);
+        console.log('🎨 Canvas scene children:', state.scene.children);
       }}
     >
       {/* This is where portaled content appears */}

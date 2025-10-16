@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useRef } from "react";
+import { memo, useMemo, useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line, Sparkles } from "@react-three/drei";
 import { DoubleSide } from "three";
@@ -462,6 +462,15 @@ export const BunnyScene = memo(function BunnyScene({
       bunnyRef.current.scale.setScalar(pulse);
     }
   });
+
+  useEffect(() => {
+    console.log('🐰 BunnyScene mounted', { 
+      state: sanitized,
+      bunnyPos: sanitized.bunny.position,
+      carrotsCount: sanitized.carrots.length,
+      obstaclesCount: sanitized.obstacles.length
+    });
+  }, []);
 
   return (
     <group>

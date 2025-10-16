@@ -1,5 +1,6 @@
 {
-  "name": "react-three-next",
+  "name": "playgroundrl",
+  "description": "An interactive reinforcement learning playground built with Next.js and React Three Fiber.",
   "version": "2.0.0",
   "authors": [
     "Renaud ROHLINGER <https://twitter.com/onirenaud>"

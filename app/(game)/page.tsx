@@ -114,7 +114,7 @@ export default function Page() {
       >
         {gameState.state === 'INITIAL' && (
           <>
-            <h1 className='text-4xl font-bold italic'>PPO Bunny</h1>
+            <h1 className='text-4xl font-bold italic'>PlaygroundRL</h1>
             <div className='flex flex-row gap-2'>
               <Button className='flex flex-row gap-2 ' onClick={() => gameState.setState('CHANGING')} size='lg'>
                 Run <Rabbit className='size-4' />
@@ -129,8 +129,8 @@ export default function Page() {
                   <DialogHeader>
                     <DialogTitle>INFO</DialogTitle>
                     <DialogDescription className='text-primary/70'>
-                      PPO Bunny is a PPO simulation where bunnies navigate complex environments in order to retrieve the
-                      most optimal reward.
+                      PlaygroundRL is an interactive reinforcement learning playground where agents explore complex
+                      environments to discover the most optimal reward.
                     </DialogDescription>
                   </DialogHeader>
                   <Image

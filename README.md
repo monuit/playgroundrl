@@ -1,21 +1,21 @@
-# PPO Bunny 🐰
+# PlaygroundRL �️
 
-A real-time web demonstration of Proximal Policy Optimization (PPO) featuring cute bunnies navigating complex environments to find optimal rewards.
+PlaygroundRL is a real-time reinforcement learning playground that runs entirely in the browser. Watch autonomous agents explore stylized grid worlds, adapt to obstacles, and chase rewards using Proximal Policy Optimization (PPO).
 
-<img width="1558" alt="Screenshot 2025-07-03 at 9 41 23 AM" src="https://github.com/user-attachments/assets/4fd82867-86c9-4823-aa8e-00b3dc952874" />
+![PlaygroundRL screenshot](https://github.com/user-attachments/assets/4fd82867-86c9-4823-aa8e-00b3dc952874)
 
 
 ## Overview
 
-PPO Bunny is an interactive visualization that demonstrates reinforcement learning in action. Watch as multiple AI-controlled bunnies learn to navigate through grid-based environments, avoiding obstacles and finding rewards using PPO (Proximal Policy Optimization).
+PlaygroundRL turns PPO training into an interactive visual experience. Multiple agents learn concurrently inside richly lit Three.js environments, helping you understand how policy gradients behave under different levels of difficulty.
 
 ## Features
 
-- **Real-time AI Training**: See PPO agents learn and adapt in your browser
+- **Real-time AI Training**: Watch PPO agents improve directly in the browser
 - **Multiple Difficulty Levels**: Two distinct environments with increasing complexity
-- **Smooth 3D Visualization**: Built with React Three Fiber for performant 3D graphics
-- **Multi-Agent System**: 10 agents learning simultaneously
-- **Dynamic Environments**: Level 2 features moving obstacles for added challenge
+- **Smooth 3D Visualization**: Powered by React Three Fiber for performant 3D graphics
+- **Multi-Agent System**: Ten agents learn simultaneously for richer dynamics
+- **Dynamic Environments**: Level 2 introduces moving obstacles for an added challenge
 
 ## Tech Stack
 
@@ -37,10 +37,10 @@ PPO Bunny is an interactive visualization that demonstrates reinforcement learni
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/noahgsolomon-ppo-bunny.git
+git clone https://github.com/yourusername/playgroundrl.git
 
 # Navigate to project directory
-cd noahgsolomon-ppo-bunny
+cd playgroundrl
 
 # Install dependencies
 npm install
@@ -121,6 +121,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Links
 
-- [Live Demo](https://ppobunny.vercel.app)
+- [Live Demo](https://playgroundrl.vercel.app)
 - [Video Explanation](https://www.youtube.com/watch?v=TjHH_--7l8g&t=2019s)
 - [PPO Paper](https://fse.studenttheses.ub.rug.nl/25709/1/mAI_2021_BickD.pdf)

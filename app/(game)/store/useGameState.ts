@@ -8,6 +8,8 @@ const useGameState = create<GameState>()((set) => ({
   setChangingText: (text: string) => set(() => ({ changingText: text })),
   currentLvl: 1,
   setCurrentLvl: (currentLvl: number) => set(() => ({ currentLvl })),
+  avatarMode: 'bunny',
+  setAvatarMode: (avatarMode: 'bunny' | 'drone') => set(() => ({ avatarMode })),
 }))
 
 export default useGameState

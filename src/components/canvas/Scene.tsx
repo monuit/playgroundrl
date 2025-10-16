@@ -14,25 +14,49 @@ import { useEffect } from 'react';
 export default function Scene() {
   useEffect(() => {
     console.log('🎬 Scene component mounted');
+    
+    // Force the canvas to stay visible after mount
+    const checkCanvas = () => {
+      const canvases = document.querySelectorAll('canvas[data-engine*="three.js"]');
+      console.log('🔍 Found canvases:', canvases.length);
+      canvases.forEach((canvas, i) => {
+        console.log(`Canvas ${i}:`, {
+          element: canvas,
+          parent: canvas.parentElement,
+          grandparent: canvas.parentElement?.parentElement,
+          computed: window.getComputedStyle(canvas)
+        });
+      });
+    };
+    
+    setTimeout(checkCanvas, 100);
+    setTimeout(checkCanvas, 500);
+    setTimeout(checkCanvas, 1000);
+    
     return () => console.log('🎬 Scene component unmounted');
   }, []);
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      pointerEvents: 'none',
-      zIndex: 10,
-    }}>
+    <div 
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        pointerEvents: 'none',
+        zIndex: 10,
+      }}
+    >
       <Canvas
         shadows
         frameloop="always"
         dpr={[1, 2]}
         gl={{ antialias: true }}
         style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
           width: '100%',
           height: '100%',
         }}

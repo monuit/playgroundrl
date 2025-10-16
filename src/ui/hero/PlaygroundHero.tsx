@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PerspectiveCamera } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
+import { View } from "@/components/canvas/View";
 import { ENV_LOOKUP } from "@/env";
 import type { ActionSpace, Env, EnvObservation } from "@/env/types";
 import { Button } from "@/components/ui/button";
@@ -350,7 +350,7 @@ export function PlaygroundHero() {
           }}
         />
         {SceneComponent ? (
-          <Canvas shadows dpr={[1, 1.8]}>
+          <View className="absolute inset-0">
             <color attach="background" args={["#030616"]} />
             <fog attach="fog" args={["#030616", 35, 110]} />
             <PerspectiveCamera makeDefault position={activeConfig.camera.position} fov={activeConfig.camera.fov} />
@@ -363,7 +363,7 @@ export function PlaygroundHero() {
                 <SceneComponent state={sceneState ?? fallbackState ?? null} />
               </group>
             </Suspense>
-          </Canvas>
+          </View>
         ) : (
           <div className="flex h-full items-center justify-center text-slate-200/60">
             Environment unavailable

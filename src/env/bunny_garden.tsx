@@ -3,6 +3,7 @@
 import { memo, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line, Sparkles } from "@react-three/drei";
+import { DoubleSide } from "three";
 import type { Group } from "three";
 import type { Env, EnvObservation, EnvStepResult } from "./types";
 import type { EnvDefinition } from "./index";
@@ -465,49 +466,87 @@ export const BunnyScene = memo(function BunnyScene({
   return (
     <group>
       <group rotation={[-Math.PI / 2, 0, 0]}>
-        <mesh receiveShadow>
-          <planeGeometry args={[BOUNDS * 2.2, BOUNDS * 2.2]} />
-          <meshStandardMaterial color="#0f172a" />
+        <mesh receiveShadow position={[0, -0.35, 0]}>
+          <planeGeometry args={[BOUNDS * 2.8, BOUNDS * 2.8]} />
+          <meshStandardMaterial color="#01030d" />
         </mesh>
-        <mesh position={[0, -0.01, 0]} receiveShadow>
-          <planeGeometry args={[BOUNDS * 2.2, BOUNDS * 2.2]} />
-          <meshStandardMaterial color="#1e3a8a" opacity={0.45} transparent />
+        <mesh receiveShadow>
+          <planeGeometry args={[BOUNDS * 2.4, BOUNDS * 2.4]} />
+          <meshStandardMaterial color="#040b1a" />
+        </mesh>
+        <mesh position={[0, 0.03, 0]} receiveShadow>
+          <planeGeometry args={[BOUNDS * 2.32, BOUNDS * 2.32]} />
+          <meshStandardMaterial color="#07162d" opacity={0.92} transparent />
+        </mesh>
+        <mesh position={[0, 0.05, 0]} receiveShadow>
+          <planeGeometry args={[BOUNDS * 2.2, BOUNDS * 2.2, 24, 24]} />
+          <meshStandardMaterial color="#0b1d38" opacity={0.45} transparent wireframe />
+        </mesh>
+        <mesh position={[0, 0.08, 0]} receiveShadow>
+          <ringGeometry args={[BOUNDS * 0.88, BOUNDS * 1.02, 96]} />
+          <meshStandardMaterial
+            color="#38bdf8"
+            emissive="#38bdf8"
+            emissiveIntensity={1.15}
+            transparent
+            opacity={0.75}
+            side={DoubleSide}
+            roughness={0.32}
+            metalness={0.45}
+          />
         </mesh>
       </group>
 
       <Sparkles
         count={120}
-        speed={0.6}
-        opacity={0.6}
-        size={2.2}
-        scale={[BOUNDS * 1.2, 60, BOUNDS * 1.2]}
-        color="#f0f9ff"
+        speed={0.7}
+        opacity={0.5}
+        size={2.4}
+        scale={[BOUNDS * 1.1, 58, BOUNDS * 1.1]}
+        color="#38bdf8"
       />
 
       <group ref={bunnyRef}>
         <mesh castShadow>
           <sphereGeometry args={[6, 32, 32]} />
-          <meshStandardMaterial color="#fef3c7" emissive="#fbbf24" emissiveIntensity={0.35} />
+          <meshStandardMaterial
+            color="#f472b6"
+            emissive="#f472b6"
+            emissiveIntensity={0.64}
+            roughness={0.35}
+            metalness={0.18}
+          />
         </mesh>
         <mesh position={[0, 6, -3]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <coneGeometry args={[2.2, 6, 16]} />
-          <meshStandardMaterial color="#f97316" />
+          <meshStandardMaterial color="#fef08a" emissive="#fde68a" emissiveIntensity={0.75} />
         </mesh>
         <mesh position={[0, 4, 3]} castShadow>
           <sphereGeometry args={[2.5, 18, 18]} />
-          <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={0.4} />
+          <meshStandardMaterial color="#f9a8d4" emissive="#f472b6" emissiveIntensity={0.8} />
         </mesh>
       </group>
 
       {sanitized.carrots.map((carrot) => (
         <group key={carrot.id} position={[carrot.position.x, 3, carrot.position.y]}>
           <mesh castShadow>
-            <coneGeometry args={[4, 10, 12]} />
-            <meshStandardMaterial color="#f97316" emissive="#fb923c" emissiveIntensity={0.6} />
+            <cylinderGeometry args={[3.8, 3.8, 14, 12]} />
+            <meshStandardMaterial
+              color="#38bdf8"
+              emissive="#38bdf8"
+              emissiveIntensity={1.15}
+              roughness={0.25}
+              metalness={0.45}
+            />
           </mesh>
-          <mesh position={[0, 5.5, 0]}>
-            <sphereGeometry args={[2, 12, 12]} />
-            <meshStandardMaterial color="#fde68a" emissive="#fde68a" emissiveIntensity={0.9} />
+          <mesh position={[0, 9, 0]}>
+            <octahedronGeometry args={[3.2, 0]} />
+            <meshStandardMaterial
+              color="#e0f2fe"
+              emissive="#bae6fd"
+              emissiveIntensity={1.35}
+              roughness={0.1}
+            />
           </mesh>
         </group>
       ))}
@@ -518,18 +557,27 @@ export const BunnyScene = memo(function BunnyScene({
           position={[obstacle.position.x, obstacle.height / 2, obstacle.position.y]}
           castShadow
         >
-          <cylinderGeometry args={[obstacle.radius * 0.6, obstacle.radius, obstacle.height, 24]} />
-          <meshStandardMaterial color="#312e81" opacity={0.75} transparent />
+          <cylinderGeometry args={[obstacle.radius * 0.35, obstacle.radius * 0.52, obstacle.height * 1.2, 32]} />
+          <meshStandardMaterial
+            color="#1d4ed8"
+            emissive="#60a5fa"
+            emissiveIntensity={0.82}
+            transparent
+            opacity={0.78}
+            roughness={0.28}
+            metalness={0.55}
+          />
         </mesh>
       ))}
 
       {trailPoints.length > 1 ? (
-        <Line points={trailPoints} color="#38bdf8" lineWidth={2.4} opacity={0.7} />
+        <Line points={trailPoints} color="#38bdf8" lineWidth={2.6} opacity={0.8} />
       ) : null}
 
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[80, 120, 80]} intensity={1.2} castShadow color="#fb7185" />
-      <directionalLight position={[-90, 160, -40]} intensity={0.8} color="#38bdf8" />
+      <ambientLight intensity={0.55} color="#60a5fa" />
+      <directionalLight position={[60, 110, 90]} intensity={1.3} castShadow color="#38bdf8" />
+      <directionalLight position={[-70, 140, -60]} intensity={0.9} color="#f472b6" />
+      <pointLight position={[0, 62, 0]} intensity={1.05} distance={260} color="#38bdf8" decay={1.4} />
     </group>
   );
 });

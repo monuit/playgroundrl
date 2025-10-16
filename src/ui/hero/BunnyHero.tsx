@@ -1,422 +1,347 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense } from "react";
+import { Canvas } from "@/lib/r3f-canvas";
+import { R3FProvider } from "@/lib/R3FProvider";
+import { PerspectiveCamera } from "@react-three/drei";
 import { ENV_LOOKUP } from "@/env";
-import { HeroScene } from "@/ui/hero/HeroScene";
-import { cn } from "@/lib/utils";
+import type { ActionSpace, EnvObservation } from "@/env/types";
 import type { LevelType } from "@/types/game";
 import { LevelType as LevelEnum } from "@/types/game";
+import type { BunnyRenderableState } from "@/env";
+import { BunnyScene } from "@/env/bunny_garden";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  PauseCircle,
+  PlayCircle,
+  Zap,
+} from "lucide-react";
 
-const HERO_ENVIRONMENTS: Array<{ id: string; label: string }> = [
-  { id: "lumen-bunny", label: "Bunny" },
-  { id: "swarm-drones", label: "Drones" },
-  { id: "reef-guardians", label: "Reef" },
-  { id: "warehouse-bots", label: "Bots" },
-  { id: "snowplow-fleet", label: "Plow" },
-];
+const BUNNY_ENV_ID = "lumen-bunny";
+const HERO_BACKGROUND = "radial-gradient(circle at 20% 20%, rgba(56,189,248,0.16), transparent 55%), radial-gradient(circle at 75% 80%, rgba(56,189,248,0.08), transparent 60%), #040714";
+const levelOrder: LevelType[] = [LevelEnum.LEVEL_1, LevelEnum.LEVEL_2];
 
-const DEFAULT_ACCENT = "#38bdf8";
+type BunnyEnvDefinition = NonNullable<(typeof ENV_LOOKUP)[typeof BUNNY_ENV_ID]>;
+type BunnyEnvInstance = ReturnType<BunnyEnvDefinition["create"]>;
 
-type HeroPoint = { x: number; z: number };
-
-interface HeroLevelConfig {
-  accent?: string;
-  path: HeroPoint[];
-  highlights: HeroPoint[];
-}
-
-interface HeroPresentationConfig {
-  accent: string;
-  levels: Partial<Record<LevelType, HeroLevelConfig>>;
-}
-
-const DEFAULT_PATH: HeroPoint[] = [
-  { x: -2.8, z: -1.8 },
-  { x: -1.4, z: -0.4 },
-  { x: 0.2, z: 0.8 },
-  { x: 1.9, z: 1.9 },
-  { x: 3.2, z: 0.4 },
-  { x: 1.2, z: -1.6 },
-];
-
-const DEFAULT_HIGHLIGHTS: HeroPoint[] = [
-  { x: -2.0, z: -1.2 },
-  { x: 0.2, z: 0.4 },
-  { x: 2.4, z: 1.2 },
-];
-
-const HERO_PRESENTATIONS: Record<string, HeroPresentationConfig> = {
-  "lumen-bunny": {
-    accent: "#f97316",
-    levels: {
-      [LevelEnum.LEVEL_1]: {
-        path: [
-          { x: -3.4, z: -2.1 },
-          { x: -1.8, z: -0.2 },
-          { x: -0.1, z: 1.2 },
-          { x: 1.8, z: 2 },
-          { x: 3.1, z: 0.4 },
-          { x: 1.2, z: -1.8 },
-        ],
-        highlights: [
-          { x: -2.4, z: -1.6 },
-          { x: -0.2, z: 0.6 },
-          { x: 2.2, z: 1.6 },
-        ],
-      },
-      [LevelEnum.LEVEL_2]: {
-        accent: "#fb7185",
-        path: [
-          { x: -3.2, z: -2.8 },
-          { x: -1.6, z: -0.8 },
-          { x: 0.4, z: 0.6 },
-          { x: 2.2, z: 1.8 },
-          { x: 3, z: 0.1 },
-          { x: 1.4, z: -2.2 },
-          { x: -0.4, z: -2.6 },
-        ],
-        highlights: [
-          { x: -2.6, z: -2 },
-          { x: -0.4, z: 0.4 },
-          { x: 2.6, z: 1 },
-        ],
-      },
-    },
-  },
-  "swarm-drones": {
-    accent: "#38bdf8",
-    levels: {
-      [LevelEnum.LEVEL_1]: {
-        path: [
-          { x: -3.1, z: -2.4 },
-          { x: -1.5, z: -0.8 },
-          { x: 0.1, z: 0.9 },
-          { x: 1.9, z: 1.9 },
-          { x: 3.2, z: 0.3 },
-          { x: 1.1, z: -1.9 },
-        ],
-        highlights: [
-          { x: -2.5, z: -2.2 },
-          { x: 0, z: -0.1 },
-          { x: 2.4, z: 1.6 },
-        ],
-      },
-      [LevelEnum.LEVEL_2]: {
-        accent: "#2dd4bf",
-        path: [
-          { x: -3.4, z: -1.5 },
-          { x: -2, z: 0.8 },
-          { x: -0.6, z: 2.1 },
-          { x: 1, z: 1.6 },
-          { x: 2.4, z: 0.4 },
-          { x: 1.6, z: -1.2 },
-          { x: -0.2, z: -1.8 },
-        ],
-        highlights: [
-          { x: -2.8, z: -1.6 },
-          { x: -0.6, z: 1.6 },
-          { x: 1.8, z: 0.2 },
-        ],
-      },
-    },
-  },
-  "reef-guardians": {
-    accent: "#22d3ee",
-    levels: {
-      [LevelEnum.LEVEL_1]: {
-        path: [
-          { x: -2.8, z: 2.8 },
-          { x: -1.4, z: 1.4 },
-          { x: 0.2, z: 0 },
-          { x: 1.8, z: -1.4 },
-          { x: 3.1, z: -0.2 },
-          { x: 1.4, z: 1.6 },
-        ],
-        highlights: [
-          { x: -2, z: 2.2 },
-          { x: 0, z: 0.2 },
-          { x: 2.4, z: 0.8 },
-        ],
-      },
-      [LevelEnum.LEVEL_2]: {
-        accent: "#38bdf8",
-        path: [
-          { x: -3.2, z: 3.1 },
-          { x: -2, z: 1.6 },
-          { x: -0.6, z: 0.1 },
-          { x: 1.1, z: -1.6 },
-          { x: 2.6, z: -0.6 },
-          { x: 1.6, z: 1.4 },
-          { x: -0.2, z: 2.6 },
-        ],
-        highlights: [
-          { x: -2.4, z: 2.6 },
-          { x: -0.6, z: 0.6 },
-          { x: 2.2, z: 0.4 },
-        ],
-      },
-    },
-  },
-  "warehouse-bots": {
-    accent: "#60a5fa",
-    levels: {
-      [LevelEnum.LEVEL_1]: {
-        path: [
-          { x: -3, z: -1.4 },
-          { x: -1.8, z: 0.8 },
-          { x: 0, z: 2.1 },
-          { x: 1.8, z: 0.8 },
-          { x: 3.1, z: -0.6 },
-          { x: 1.4, z: -2.1 },
-        ],
-        highlights: [
-          { x: -2.4, z: -1 },
-          { x: 0, z: 1.8 },
-          { x: 2.4, z: -0.2 },
-        ],
-      },
-      [LevelEnum.LEVEL_2]: {
-        accent: "#38bdf8",
-        path: [
-          { x: -3.3, z: -0.4 },
-          { x: -2, z: 1.4 },
-          { x: -0.4, z: 2.4 },
-          { x: 1.2, z: 1.2 },
-          { x: 2.8, z: -0.2 },
-          { x: 1.6, z: -1.8 },
-          { x: -0.6, z: -1.6 },
-        ],
-        highlights: [
-          { x: -2.6, z: 0.6 },
-          { x: -0.2, z: 2 },
-          { x: 2.2, z: -1 },
-        ],
-      },
-    },
-  },
-  "snowplow-fleet": {
-    accent: "#a5b4fc",
-    levels: {
-      [LevelEnum.LEVEL_1]: {
-        path: [
-          { x: -3.2, z: 0.8 },
-          { x: -1.8, z: 1.8 },
-          { x: 0, z: 1.2 },
-          { x: 1.6, z: 0.2 },
-          { x: 3, z: -1.2 },
-          { x: 1, z: -2 },
-        ],
-        highlights: [
-          { x: -2.2, z: 0.8 },
-          { x: 0.4, z: 1 },
-          { x: 2.4, z: -0.8 },
-        ],
-      },
-      [LevelEnum.LEVEL_2]: {
-        accent: "#c4b5fd",
-        path: [
-          { x: -3.4, z: 1.6 },
-          { x: -2.2, z: 2.4 },
-          { x: -0.6, z: 1.6 },
-          { x: 1, z: 0.6 },
-          { x: 2.6, z: -0.6 },
-          { x: 1.2, z: -2.2 },
-          { x: -1, z: -1.2 },
-        ],
-        highlights: [
-          { x: -2.6, z: 1.6 },
-          { x: -0.4, z: 1.2 },
-          { x: 2, z: -1.2 },
-        ],
-      },
-    },
-  },
-};
-
-const defaultLevelConfig: HeroLevelConfig = {
-  accent: DEFAULT_ACCENT,
-  path: DEFAULT_PATH,
-  highlights: DEFAULT_HIGHLIGHTS,
-};
-
-const validHeroEnvs = HERO_ENVIRONMENTS.filter((entry) => Boolean(ENV_LOOKUP[entry.id]))
-  .map((entry) => ({
-    ...entry,
-    label: ENV_LOOKUP[entry.id]?.name ?? entry.label,
-  }));
-
-const DEFAULT_ENVIRONMENT_ID = validHeroEnvs[0]?.id ?? HERO_ENVIRONMENTS[0]?.id ?? "";
-
-const HERO_CONTROL_BASE =
-  "h-7 rounded-full px-3 text-[11px] font-semibold uppercase tracking-[0.22em] leading-none transition-all duration-200";
-const HERO_CONTROL_ACTIVE = "shadow-[0_16px_36px_rgba(8,47,73,0.45)]";
-const HERO_CONTROL_INACTIVE =
-  "border border-white/12 bg-white/5 text-white/70 hover:border-white/20 hover:bg-white/10 hover:text-white";
-
-const hexToRgba = (hex: string | undefined, alpha: number): string => {
-  if (!hex) {
-    return `rgba(56, 189, 248, ${alpha})`;
+const sanitizeState = <T,>(value: T, depth = 0, seen = new WeakSet<object>()): T => {
+  if (depth > 8) {
+    return value;
   }
-  const normalized = hex.replace("#", "");
-  const expanded =
-    normalized.length === 3
-      ? normalized
-          .split("")
-          .map((char) => char + char)
-          .join("")
-      : normalized;
-  if (expanded.length !== 6) {
-    return `rgba(56, 189, 248, ${alpha})`;
+
+  if (typeof value === "number") {
+    if (Number.isFinite(value)) {
+      return value;
+    }
+    if (Number.isNaN(value)) {
+      return 0 as T;
+    }
+    if (value === Infinity || value === -Infinity) {
+      return Math.sign(value) as unknown as T;
+    }
+    return 0 as T;
   }
-  const r = Number.parseInt(expanded.slice(0, 2), 16);
-  const g = Number.parseInt(expanded.slice(2, 4), 16);
-  const b = Number.parseInt(expanded.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  if (seen.has(value as object)) {
+    return value;
+  }
+
+  seen.add(value as object);
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeState(item, depth + 1, seen)) as unknown as T;
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    const ctor = (value as { constructor: { new (iterable: Iterable<number>): unknown } }).constructor;
+    try {
+      const sanitized = Array.from(value as unknown as Iterable<number>, (item) =>
+        Number.isFinite(item) ? item : 0
+      );
+      return new ctor(sanitized) as T;
+    } catch {
+      return value;
+    }
+  }
+
+  const result: Record<string, unknown> = {};
+  Object.entries(value as Record<string, unknown>).forEach(([key, entry]) => {
+    result[key] = sanitizeState(entry, depth + 1, seen);
+  });
+  return result as T;
 };
 
-const resolveHeroPresentation = (environmentId: string, level: LevelType) => {
-  const environmentConfig = HERO_PRESENTATIONS[environmentId];
-  const fallbackLevel = environmentConfig?.levels[LevelEnum.LEVEL_1] ?? defaultLevelConfig;
-  const levelConfig = environmentConfig?.levels[level] ?? fallbackLevel;
-  return {
-    accent: levelConfig?.accent ?? fallbackLevel.accent ?? environmentConfig?.accent ?? DEFAULT_ACCENT,
-    path: levelConfig?.path ?? fallbackLevel.path ?? defaultLevelConfig.path,
-    highlights: levelConfig?.highlights ?? fallbackLevel.highlights ?? defaultLevelConfig.highlights,
-  };
+const observationToRenderable = (observation: EnvObservation | undefined) => {
+  if (!observation) {
+    return undefined;
+  }
+  if (typeof observation === "object" && "metadata" in observation) {
+    const metadata = (observation as { metadata?: unknown }).metadata;
+    return metadata ?? observation;
+  }
+  return observation;
+};
+
+const sampleContinuousAction = (actionSpace: Extract<ActionSpace, { type: "box" }>, stepIndex: number) => {
+  const totalSize = actionSpace.shape.reduce((acc, value) => acc * value, 1);
+  const amplitude = 0.5;
+  const base = Math.sin((stepIndex + 1) * 0.65) * amplitude;
+  return Array.from({ length: totalSize }, (_, idx) => {
+    const variation = Math.cos((stepIndex + idx) * 0.45) * amplitude * 0.4;
+    const value = base + variation;
+    return Math.max(actionSpace.low, Math.min(actionSpace.high, value));
+  });
+};
+
+const sampleAction = (actionSpace: ActionSpace, stepIndex: number) => {
+  if (actionSpace.type === "discrete") {
+    if (!Number.isFinite(actionSpace.n) || actionSpace.n <= 0) {
+      return 0;
+    }
+    return stepIndex % actionSpace.n;
+  }
+  return sampleContinuousAction(actionSpace, stepIndex);
 };
 
 export function BunnyHero() {
-  const [activeEnv, setActiveEnv] = useState<string>(DEFAULT_ENVIRONMENT_ID);
   const [activeLevel, setActiveLevel] = useState<LevelType>(LevelEnum.LEVEL_1);
+  const [sceneState, setSceneState] = useState<BunnyRenderableState | null>(null);
   const [running, setRunning] = useState(false);
-  const [resetSignal, setResetSignal] = useState(0);
-  const restartTimer = useRef<number | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const envRef = useRef<BunnyEnvInstance | null>(null);
+  const stepIndexRef = useRef(0);
+  const animationTimerRef = useRef<number | null>(null);
 
-  const heroVisual = useMemo(() => resolveHeroPresentation(activeEnv, activeLevel), [activeEnv, activeLevel]);
+  const bunnyDefinition = ENV_LOOKUP[BUNNY_ENV_ID];
 
-  useEffect(() => {
-    if (restartTimer.current !== null) {
-      window.clearTimeout(restartTimer.current);
-      restartTimer.current = null;
+  const warmupSteps = useMemo(() => (activeLevel === LevelEnum.LEVEL_2 ? 28 : 12), [activeLevel]);
+
+  const runInterval = useMemo(() => (activeLevel === LevelEnum.LEVEL_2 ? 220 : 320), [activeLevel]);
+
+  const resetEnvironment = useCallback(() => {
+    if (!bunnyDefinition) {
+      return;
     }
-    setRunning(false);
-    setResetSignal((value) => value + 1);
-    restartTimer.current = window.setTimeout(() => {
-      setRunning(true);
-      restartTimer.current = null;
-    }, 380);
-    return () => {
-      if (restartTimer.current !== null) {
-        window.clearTimeout(restartTimer.current);
-        restartTimer.current = null;
+
+    if (animationTimerRef.current !== null) {
+      window.clearInterval(animationTimerRef.current);
+      animationTimerRef.current = null;
+    }
+
+    const env = bunnyDefinition.create();
+    envRef.current = env;
+    stepIndexRef.current = 0;
+
+    const initialObservation = env.reset();
+    let latest = initialObservation;
+
+    for (let i = 0; i < warmupSteps; i += 1) {
+      const action = sampleAction(env.actionSpace, stepIndexRef.current);
+      stepIndexRef.current += 1;
+      const result = env.step(action);
+      latest = result?.state ?? latest;
+      if (result?.done) {
+        latest = env.reset();
       }
-    };
-  }, [activeEnv, activeLevel]);
+    }
+
+    const renderable = observationToRenderable(latest);
+    const sanitized = sanitizeState(renderable);
+    setSceneState((sanitized ?? null) as BunnyRenderableState | null);
+  }, [bunnyDefinition, warmupSteps]);
 
   useEffect(() => {
+    resetEnvironment();
+    setRunning(false);
     return () => {
-      if (restartTimer.current !== null) {
-        window.clearTimeout(restartTimer.current);
+      if (animationTimerRef.current !== null) {
+        window.clearInterval(animationTimerRef.current);
       }
     };
-  }, []);
+  }, [resetEnvironment, activeLevel]);
 
-  const accentGlowTop = useMemo(() => hexToRgba(heroVisual.accent, 0.24), [heroVisual.accent]);
-  const accentGlowBottom = useMemo(() => hexToRgba(heroVisual.accent, 0.16), [heroVisual.accent]);
-  const accentBorder = useMemo(() => hexToRgba(heroVisual.accent, 0.22), [heroVisual.accent]);
-  const accentShadow = useMemo(() => hexToRgba(heroVisual.accent, 0.28), [heroVisual.accent]);
+  useEffect(() => {
+    if (!running) {
+      if (animationTimerRef.current !== null) {
+        window.clearInterval(animationTimerRef.current);
+        animationTimerRef.current = null;
+      }
+      return undefined;
+    }
 
-  const activeControlStyle = useMemo<CSSProperties>(
-    () => ({
-      background: hexToRgba(heroVisual.accent, 0.9),
-      color: "#031019",
-      borderColor: hexToRgba(heroVisual.accent, 0.38),
-      boxShadow: `0 18px 42px ${hexToRgba(heroVisual.accent, 0.38)}`,
-    }),
-    [heroVisual.accent]
-  );
-  const inactiveControlStyle = useMemo<CSSProperties>(
-    () => ({
-      borderColor: hexToRgba(heroVisual.accent, 0.16),
-      color: "rgba(248, 250, 252, 0.78)",
-      background: "rgba(15, 23, 42, 0.48)",
-    }),
-    [heroVisual.accent]
-  );
+    animationTimerRef.current = window.setInterval(() => {
+      const env = envRef.current;
+      if (!env) {
+        return;
+      }
+      const action = sampleAction(env.actionSpace, stepIndexRef.current);
+      stepIndexRef.current += 1;
+      const result = env.step(action);
+      let latest = result?.state;
+      if (result?.done) {
+        latest = env.reset();
+        stepIndexRef.current = 0;
+      }
+      const renderable = observationToRenderable(latest);
+      const sanitized = sanitizeState(renderable);
+      setSceneState((sanitized ?? null) as BunnyRenderableState | null);
+    }, runInterval);
+
+    return () => {
+      if (animationTimerRef.current !== null) {
+        window.clearInterval(animationTimerRef.current);
+        animationTimerRef.current = null;
+      }
+    };
+  }, [running, runInterval]);
+
+  const handleToggleRun = () => {
+    setRunning((prev) => !prev);
+  };
+
+  const handlePrevLevel = () => {
+    const currentIndex = levelOrder.indexOf(activeLevel);
+    const nextIndex = (currentIndex - 1 + levelOrder.length) % levelOrder.length;
+    setActiveLevel(levelOrder[nextIndex]);
+  };
+
+  const handleNextLevel = () => {
+    const currentIndex = levelOrder.indexOf(activeLevel);
+    const nextIndex = (currentIndex + 1) % levelOrder.length;
+    setActiveLevel(levelOrder[nextIndex]);
+  };
+
+  const levelLabel = activeLevel === LevelEnum.LEVEL_1 ? "Level 1" : "Level 2";
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#050312]">
+    <div className="relative h-screen w-screen overflow-hidden text-slate-100" style={{ background: HERO_BACKGROUND }}>
       <div className="absolute inset-0">
-        <HeroScene
-          accent={heroVisual.accent}
-          path={heroVisual.path}
-          highlights={heroVisual.highlights}
-          running={running}
-          resetSignal={resetSignal}
-          className="absolute inset-0"
-        />
-        <div
-          className="pointer-events-none absolute inset-0 mix-blend-screen"
-          style={{
-            background: `radial-gradient(circle at 20% 18%, ${accentGlowTop}, transparent 58%)`,
-          }}
-        />
-        <div
-          className="pointer-events-none absolute inset-0 mix-blend-screen"
-          style={{
-            background: `radial-gradient(circle at 70% 82%, ${accentGlowBottom}, transparent 62%)`,
-          }}
-        />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-[#020617] via-[#020617]/30 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-[#020717] via-transparent to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-[#01040c] via-[#01040c]/60 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(12,79,151,0.15),_transparent_62%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(56,189,248,0.12),_transparent_58%)]" />
+        <R3FProvider>
+          {sceneState ? (
+            <Canvas shadows dpr={[1, 1.8]}>
+              <color attach="background" args={["#030616"]} />
+              <fog attach="fog" args={["#030616", 30, 90]} />
+              <PerspectiveCamera makeDefault position={[18, 15, 26]} fov={42} />
+              <ambientLight intensity={0.45} color="#6cbcf5" />
+              <directionalLight
+                position={[40, 60, 30]}
+                intensity={1.2}
+                color="#60a5fa"
+                castShadow
+                shadow-mapSize-width={2048}
+                shadow-mapSize-height={2048}
+              />
+              <spotLight
+                position={[-28, 50, -20]}
+                intensity={0.8}
+                angle={0.5}
+                penumbra={0.4}
+                color="#38bdf8"
+                castShadow
+              />
+              <Suspense fallback={null}>
+                <group position={[0, -6, 0]} scale={0.05}>
+                  <BunnyScene state={sceneState} />
+                </group>
+              </Suspense>
+            </Canvas>
+          ) : null}
+        </R3FProvider>
       </div>
 
-      <div
-        className="pointer-events-auto absolute left-1/2 top-5 z-30 flex -translate-x-1/2 gap-1 rounded-full border bg-black/40 p-1 backdrop-blur-xl"
-        style={{ borderColor: accentBorder, boxShadow: `0 18px 48px ${accentShadow}` }}
-      >
-        {validHeroEnvs.map((env) => {
-          const isActive = env.id === activeEnv;
-          return (
-            <Button
-              key={env.id}
-              size="sm"
-              variant="ghost"
-              className={cn(HERO_CONTROL_BASE, isActive ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE, "min-w-[74px]")}
-              style={isActive ? activeControlStyle : inactiveControlStyle}
-              onClick={() => {
-                setActiveEnv(env.id);
-                setActiveLevel(LevelEnum.LEVEL_1);
-              }}
-            >
-              {env.label}
-            </Button>
-          );
-        })}
-      </div>
+      <header className="pointer-events-none absolute inset-x-0 top-12 z-20 flex flex-col items-center gap-4">
+        <div className="text-4xl font-semibold tracking-[0.32em] text-white drop-shadow-[0_8px_24px_rgba(15,23,42,0.72)]">
+          PPO <span className="text-sky-300">Bunny</span>
+        </div>
+        <div className="pointer-events-auto flex items-center gap-2">
+          <Button
+            onClick={handleToggleRun}
+            className="rounded-full bg-white/90 px-5 text-sm font-semibold uppercase tracking-[0.28em] text-slate-900 shadow-[0_12px_32px_rgba(15,23,42,0.45)] hover:bg-white"
+          >
+            {running ? (
+              <>
+                <PauseCircle className="mr-2 size-4" /> Pause
+              </>
+            ) : (
+              <>
+                <PlayCircle className="mr-2 size-4" /> Run
+              </>
+            )}
+          </Button>
+          <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="rounded-full border-white/30 bg-white/5 px-5 text-sm font-semibold uppercase tracking-[0.28em] text-slate-100 shadow-[0_10px_28px_rgba(15,23,42,0.35)] hover:bg-white/10"
+              >
+                <Info className="mr-2 size-4" /> Info
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md border border-white/10 bg-[#071123]/95 text-slate-100">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-semibold tracking-wide text-white">PPO Bunny Overview</DialogTitle>
+                <DialogDescription className="text-slate-300">
+                  PPO Bunny showcases a policy gradient agent collecting glowing energy cells while navigating obstacles on a 25×25 grid. Use <strong>Run</strong> to step through the policy rollout and switch levels to explore harder layouts.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 space-y-3 text-sm text-slate-300">
+                <p>Level 1 features static obstacles and a gentle reward curve.</p>
+                <p>Level 2 introduces denser hazards and longer trajectories, highlighting PPO&apos;s stability.</p>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </header>
 
-      <div
-        className="pointer-events-auto absolute right-4 top-5 z-30 flex gap-1 rounded-full border bg-black/40 p-1 backdrop-blur-xl"
-        style={{ borderColor: accentBorder, boxShadow: `0 18px 48px ${accentShadow}` }}
-      >
+      <div className="pointer-events-auto absolute bottom-16 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-4">
+        <div className="flex items-center gap-3 rounded-full border border-white/20 bg-black/40 px-4 py-2 backdrop-blur-xl">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-9 rounded-full border border-white/20 bg-white/10 text-white hover:bg-white/20"
+            onClick={handlePrevLevel}
+            aria-label="Previous level"
+          >
+            <ChevronLeft className="size-5" />
+          </Button>
+          <div className="min-w-[120px] text-center text-sm font-semibold uppercase tracking-[0.4em] text-white">
+            {levelLabel}
+          </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-9 rounded-full border border-white/20 bg-white/10 text-white hover:bg-white/20"
+            onClick={handleNextLevel}
+            aria-label="Next level"
+          >
+            <ChevronRight className="size-5" />
+          </Button>
+        </div>
         <Button
-          size="sm"
-          variant="ghost"
-          className={cn(HERO_CONTROL_BASE, activeLevel === LevelEnum.LEVEL_1 ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE)}
-          style={activeLevel === LevelEnum.LEVEL_1 ? activeControlStyle : inactiveControlStyle}
-          onClick={() => setActiveLevel(LevelEnum.LEVEL_1)}
+          onClick={() => window.open("/docs/models", "_blank")}
+          className="rounded-full border border-sky-400/40 bg-sky-500/20 px-6 text-xs font-semibold uppercase tracking-[0.32em] text-sky-200 shadow-[0_10px_28px_rgba(56,189,248,0.35)] hover:bg-sky-500/30"
         >
-          Level 1
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className={cn(HERO_CONTROL_BASE, activeLevel === LevelEnum.LEVEL_2 ? HERO_CONTROL_ACTIVE : HERO_CONTROL_INACTIVE)}
-          style={activeLevel === LevelEnum.LEVEL_2 ? activeControlStyle : inactiveControlStyle}
-          onClick={() => setActiveLevel(LevelEnum.LEVEL_2)}
-        >
-          Level 2
+          <Zap className="mr-2 size-4" /> Model Details
         </Button>
       </div>
     </div>

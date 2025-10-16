@@ -228,6 +228,21 @@ const sampleAction = (actionSpace: ActionSpace, stepIndex: number) => {
   return sampleContinuousAction(actionSpace, stepIndex);
 };
 
+const buildFallbackState = (envDefinition: (typeof ENV_LOOKUP)[string] | undefined) => {
+  if (!envDefinition) {
+    return null;
+  }
+  try {
+    const env = envDefinition.create();
+    const obs = env.reset();
+    const renderable = observationToRenderable(obs);
+    const sanitized = sanitizeState(renderable);
+    return sanitized ?? null;
+  } catch {
+    return null;
+  }
+};
+
 export function PlaygroundHero() {
   const defaultEnvId = HERO_ENVIRONMENTS[0]?.id ?? "";
   const [activeEnvId, setActiveEnvId] = useState<HeroEnvId>(defaultEnvId);
@@ -245,6 +260,10 @@ export function PlaygroundHero() {
 
   const envDefinition = activeConfig ? ENV_LOOKUP[activeConfig.id] : undefined;
   const SceneComponent = envDefinition?.Scene;
+  const fallbackState = useMemo(
+    () => buildFallbackState(envDefinition),
+    [envDefinition]
+  );
 
   const backgroundStyle = useMemo(
     () => ({
@@ -408,7 +427,7 @@ export function PlaygroundHero() {
                   rotation={sceneRotation as Vector3Tuple}
                   scale={activeConfig.scene.scale}
                 >
-                  <SceneComponent state={sceneState ?? null} />
+                  <SceneComponent state={sceneState ?? fallbackState ?? null} />
                 </group>
               </Suspense>
             </Canvas>

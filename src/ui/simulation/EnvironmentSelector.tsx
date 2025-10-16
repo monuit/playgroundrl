@@ -2,23 +2,21 @@
 
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import type { EnvironmentType, LevelType } from '@/types/game';
-import { EnvironmentType as EnvEnum, LevelType as LevelEnum } from '@/types/game';
+import type { LevelType } from '@/types/game';
+import { LevelType as LevelEnum } from '@/types/game';
+import { ENVIRONMENTS } from '@/env';
 
 interface EnvironmentSelectorProps {
-  selectedEnv: EnvironmentType | null;
+  selectedEnv: string | null;
   selectedLevel: LevelType | null;
-  onEnvChange: (env: EnvironmentType) => void;
+  onEnvChange: (env: string) => void;
   onLevelChange: (level: LevelType) => void;
 }
 
-const ENVIRONMENT_LABELS: Record<EnvironmentType, string> = {
-  [EnvEnum.BUNNY_GARDEN]: 'Bunny Garden',
-  [EnvEnum.SWARM_DRONES]: 'Swarm Drones',
-  [EnvEnum.REEF_GUARDIANS]: 'Reef Guardians',
-  [EnvEnum.WAREHOUSE_BOTS]: 'Warehouse Bots',
-  [EnvEnum.SNOWPLOW_FLEET]: 'Snowplow Fleet',
-};
+const ENVIRONMENT_OPTIONS = ENVIRONMENTS.map((definition) => ({
+  id: definition.id,
+  name: definition.name,
+}));
 
 export function EnvironmentSelector({
   selectedEnv,
@@ -31,16 +29,21 @@ export function EnvironmentSelector({
       <section className="space-y-3">
         <Label className="text-xs uppercase tracking-[0.35em] text-slate-400">Environment</Label>
         <Select
-          value={selectedEnv || ''}
-          onValueChange={(value) => onEnvChange(value as EnvironmentType)}
+          value={selectedEnv ?? ''}
+          onValueChange={(value) => {
+            if (!value) {
+              return;
+            }
+            onEnvChange(value);
+          }}
         >
           <SelectTrigger className="border-white/15 bg-white/10 text-left text-white">
             <SelectValue placeholder="Select environment" />
           </SelectTrigger>
           <SelectContent className="border-white/10 bg-slate-950/95 text-slate-100">
-            {Object.entries(ENVIRONMENT_LABELS).map(([env, label]) => (
-              <SelectItem key={env} value={env}>
-                {label}
+            {ENVIRONMENT_OPTIONS.map((option) => (
+              <SelectItem key={option.id} value={option.id}>
+                {option.name}
               </SelectItem>
             ))}
           </SelectContent>

@@ -4,8 +4,9 @@ import { create } from "zustand";
 import type { StoreApi } from "zustand";
 import type { Difficulty, GridRenderableState } from "@/lib/simulation/gridWorld";
 import type { SimulationCommand, SimulationEvent } from "@/workers/simulation.types";
-import type { EnvironmentType, LevelType } from '@/types/game';
-import { EnvironmentType as EnvEnum, LevelType as LevelEnum } from '@/types/game';
+import type { LevelType } from "@/types/game";
+import { LevelType as LevelEnum } from "@/types/game";
+import { ENVIRONMENTS } from "@/env";
 
 const placeholderFrame: GridRenderableState = {
   size: 25,
@@ -25,12 +26,14 @@ let workerInstance: Worker | null = null;
 let lastTick = 0;
 let lastTimestamp = 0;
 
+const DEFAULT_ENVIRONMENT = ENVIRONMENTS[0]?.id ?? null;
+
 const baseConfig = {
   difficulty: "meadow" as Difficulty,
   agentCount: 8,
   speed: 1,
   renderQuality: "high" as "high" | "medium",
-  environment: EnvEnum.BUNNY_GARDEN as EnvironmentType,
+  environment: DEFAULT_ENVIRONMENT,
   level: LevelEnum.LEVEL_1 as LevelType,
 };
 
@@ -123,7 +126,7 @@ export interface SimulationState {
   episode: number;
   totalReward: number;
   stepsPerSecond: number;
-  environment: EnvironmentType;
+  environment: string | null;
   level: LevelType;
   lastUpdated?: number;
   loadPolicy(url?: string): Promise<void>;
@@ -137,7 +140,7 @@ export interface SimulationState {
   setAgentCount(count: number): void;
   setSpeed(speed: number): void;
   toggleQuality(): void;
-  setEnvironment(environment: EnvironmentType): void;
+  setEnvironment(environment: string): void;
   setLevel(level: LevelType): void;
 }
 

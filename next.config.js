@@ -1,5 +1,3 @@
-import type { NextConfig } from "next";
-
 const isDev = process.env.NODE_ENV !== "production";
 
 const scriptSrc = (isDev
@@ -26,7 +24,7 @@ const securityHeaders = [
   },
 ];
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   reactStrictMode: false, // Temporarily disabled to prevent Scene unmount/remount
   outputFileTracingRoot: __dirname,
   headers: async () => [
@@ -40,4 +38,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

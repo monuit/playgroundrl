@@ -1,9 +1,5 @@
 import type { ComponentType } from "react";
 import type { EnvFactory } from "./types";
-import { SwarmDronesDefinition } from "./swarm_drones";
-import { ReefGuardiansDefinition } from "./reef_guardians";
-import { WarehouseBotsDefinition } from "./warehouse_bots";
-import { SnowplowFleetDefinition } from "./snowplow_fleet";
 import { BunnyGardenDefinition } from "./bunny_garden";
 import { MazeDefinition } from "./maze";
 import { PongDefinition } from "./pong";
@@ -28,10 +24,6 @@ const coerceDefinition = <State,>(
 });
 
 export const ENVIRONMENTS: EnvRegistryDefinition[] = [
-  coerceDefinition(SwarmDronesDefinition),
-  coerceDefinition(ReefGuardiansDefinition),
-  coerceDefinition(WarehouseBotsDefinition),
-  coerceDefinition(SnowplowFleetDefinition),
   coerceDefinition(BunnyGardenDefinition),
   coerceDefinition(MazeDefinition),
   coerceDefinition(PongDefinition),
@@ -48,10 +40,6 @@ export const ENV_LOOKUP = ENVIRONMENTS.reduce<
 }, {});
 
 export {
-  SwarmDronesDefinition,
-  ReefGuardiansDefinition,
-  WarehouseBotsDefinition,
-  SnowplowFleetDefinition,
   BunnyGardenDefinition,
   MazeDefinition,
   PongDefinition,
@@ -60,10 +48,6 @@ export {
   MountainCarDefinition,
   TinyGridDefinition,
 };
-export type { SwarmDronesRenderableState } from "./swarm_drones";
-export type { ReefGuardiansRenderableState } from "./reef_guardians";
-export type { WarehouseBotsRenderableState } from "./warehouse_bots";
-export type { SnowplowFleetRenderableState } from "./snowplow_fleet";
 export type { BunnyRenderableState } from "./bunny_garden";
 export type { MazeRenderableState } from "./maze";
 export type { PongRenderableState } from "./pong";

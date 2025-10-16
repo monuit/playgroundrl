@@ -1,9 +1,8 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas } from "@/lib/r3f-canvas";
-import { R3FProvider } from "@/lib/R3FProvider";
 import { PerspectiveCamera } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
 import { ENV_LOOKUP } from "@/env";
 import type { ActionSpace, Env, EnvObservation } from "@/env/types";
 import { Button } from "@/components/ui/button";
@@ -16,8 +15,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  ChevronLeft,
-  ChevronRight,
   Info,
   PauseCircle,
   PlayCircle,
@@ -67,57 +64,6 @@ const HERO_ENVIRONMENTS: HeroEnvConfig[] = [
     warmupSteps: 28,
     interval: 240,
     docsUrl: "/docs/env/bunny-garden",
-  },
-  {
-    id: "warehouse-bots",
-    label: "Warehouse Bots",
-    tagline: "Queue-aware fleets keep fulfillment SLAs on track.",
-    accent: { primary: "#22d3ee", secondary: "#facc15" },
-    camera: {
-      position: [34, 42, 46],
-      fov: 40,
-    },
-    scene: {
-      scale: 0.06,
-      position: [0, -12, 0],
-    },
-    warmupSteps: 36,
-    interval: 260,
-    docsUrl: "/docs/env/warehouse-bots",
-  },
-  {
-    id: "swarm-drones",
-    label: "Swarm Drones",
-    tagline: "Coordinated coverage keeps the frontier advancing.",
-    accent: { primary: "#a855f7", secondary: "#38bdf8" },
-    camera: {
-      position: [28, 34, 38],
-      fov: 42,
-    },
-    scene: {
-      scale: 0.058,
-      position: [0, -8, 0],
-    },
-    warmupSteps: 32,
-    interval: 240,
-    docsUrl: "/docs/env/swarm-drones",
-  },
-  {
-    id: "reef-guardians",
-    label: "Reef Guardians",
-    tagline: "Autonomous divers rebuild coral nurseries under surge.",
-    accent: { primary: "#34d399", secondary: "#0ea5e9" },
-    camera: {
-      position: [26, 32, 36],
-      fov: 40,
-    },
-    scene: {
-      scale: 0.058,
-      position: [0, -8, 0],
-    },
-    warmupSteps: 30,
-    interval: 260,
-    docsUrl: "/docs/env/reef-guardians",
   },
 ];
 
@@ -370,18 +316,6 @@ export function PlaygroundHero() {
     setActiveEnvId(id);
   };
 
-  const handlePrevEnv = () => {
-    const index = HERO_ENVIRONMENTS.findIndex((env) => env.id === activeEnvId);
-    const nextIndex = (index - 1 + HERO_ENVIRONMENTS.length) % HERO_ENVIRONMENTS.length;
-    setActiveEnvId(HERO_ENVIRONMENTS[nextIndex].id);
-  };
-
-  const handleNextEnv = () => {
-    const index = HERO_ENVIRONMENTS.findIndex((env) => env.id === activeEnvId);
-    const nextIndex = (index + 1) % HERO_ENVIRONMENTS.length;
-    setActiveEnvId(HERO_ENVIRONMENTS[nextIndex].id);
-  };
-
   const selectedDocsUrl = activeConfig.docsUrl ?? "/docs";
   const infoDescription = envDefinition?.description ?? activeConfig.tagline;
 
@@ -415,28 +349,26 @@ export function PlaygroundHero() {
             )}, transparent 58%)`,
           }}
         />
-        <R3FProvider>
-          {SceneComponent ? (
-            <Canvas shadows dpr={[1, 1.8]}>
-              <color attach="background" args={["#030616"]} />
-              <fog attach="fog" args={["#030616", 35, 110]} />
-              <PerspectiveCamera makeDefault position={activeConfig.camera.position} fov={activeConfig.camera.fov} />
-              <Suspense fallback={null}>
-                <group
-                  position={scenePosition}
-                  rotation={sceneRotation as Vector3Tuple}
-                  scale={activeConfig.scene.scale}
-                >
-                  <SceneComponent state={sceneState ?? fallbackState ?? null} />
-                </group>
-              </Suspense>
-            </Canvas>
-          ) : (
-            <div className="flex h-full items-center justify-center text-slate-200/60">
-              Environment unavailable
-            </div>
-          )}
-        </R3FProvider>
+        {SceneComponent ? (
+          <Canvas shadows dpr={[1, 1.8]}>
+            <color attach="background" args={["#030616"]} />
+            <fog attach="fog" args={["#030616", 35, 110]} />
+            <PerspectiveCamera makeDefault position={activeConfig.camera.position} fov={activeConfig.camera.fov} />
+            <Suspense fallback={null}>
+              <group
+                position={scenePosition}
+                rotation={sceneRotation as Vector3Tuple}
+                scale={activeConfig.scene.scale}
+              >
+                <SceneComponent state={sceneState ?? fallbackState ?? null} />
+              </group>
+            </Suspense>
+          </Canvas>
+        ) : (
+          <div className="flex h-full items-center justify-center text-slate-200/60">
+            Environment unavailable
+          </div>
+        )}
       </div>
 
       <header className="pointer-events-none absolute inset-x-0 top-16 z-20 flex flex-col items-center gap-6">
@@ -494,28 +426,8 @@ export function PlaygroundHero() {
       </header>
 
       <div className="pointer-events-auto absolute bottom-20 left-1/2 z-20 flex w-full max-w-5xl -translate-x-1/2 flex-col items-center gap-6 px-6">
-        <div className="flex items-center gap-3 rounded-full border border-white/20 bg-black/35 px-4 py-2 backdrop-blur-xl">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-9 rounded-full border border-white/20 bg-white/10 text-white hover:bg-white/20"
-            onClick={handlePrevEnv}
-            aria-label="Previous environment"
-          >
-            <ChevronLeft className="size-5" />
-          </Button>
-          <div className="min-w-[150px] text-center text-sm font-semibold uppercase tracking-[0.42em] text-white">
-            {activeConfig.label}
-          </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-9 rounded-full border border-white/20 bg-white/10 text-white hover:bg-white/20"
-            onClick={handleNextEnv}
-            aria-label="Next environment"
-          >
-            <ChevronRight className="size-5" />
-          </Button>
+        <div className="rounded-full border border-white/20 bg-black/35 px-6 py-2 backdrop-blur-xl text-sm font-semibold uppercase tracking-[0.42em] text-white">
+          {activeConfig.label}
         </div>
 
         <div className="flex flex-wrap justify-center gap-3">

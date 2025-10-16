@@ -5,7 +5,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { config } from '@react-spring/three'
 import { animated, useSpring, config as webConfig } from '@react-spring/web'
 import { PerspectiveCamera, PresentationControls } from '@react-three/drei'
-import { ArrowLeft, ArrowRight, Info, Rabbit, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bot, Info, Rabbit, Zap } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Lights from './Lights'
@@ -67,6 +67,16 @@ export default function Page() {
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!isMounted) return
+
+    if (gameState.currentLvl === 1 && gameState.avatarMode !== 'bunny') {
+      gameState.setAvatarMode('bunny')
+    } else if (gameState.currentLvl === 2 && gameState.avatarMode !== 'drone') {
+      gameState.setAvatarMode('drone')
+    }
+  }, [gameState.avatarMode, gameState.currentLvl, gameState.setAvatarMode, isMounted])
 
   if (!isMounted) {
     return null
@@ -189,7 +199,8 @@ export default function Page() {
         style={modelAnimation}
         className={'bottom-16 z-10 absolute text-center w-full flex justify-center flex-col items-center gap-4'}
       >
-        <div className='items-center flex flex-row gap-2'>
+        <div className='flex flex-col items-center gap-3'>
+          <div className='items-center flex flex-row gap-2'>
           <Button
             disabled={
               gameState.currentLvl === 1 || gameState.state === 'LOADING' || gameState.state === 'LOADING_MODEL'
@@ -215,6 +226,27 @@ export default function Page() {
           >
             <ArrowRight className='size-4' />
           </Button>
+          </div>
+          <div className='flex flex-wrap items-center justify-center gap-2'>
+            <Button
+              size='sm'
+              variant={gameState.avatarMode === 'bunny' ? 'default' : 'outline'}
+              aria-pressed={gameState.avatarMode === 'bunny'}
+              onClick={() => gameState.setAvatarMode('bunny')}
+            >
+              <Rabbit className='size-4' />
+              Bunnies
+            </Button>
+            <Button
+              size='sm'
+              variant={gameState.avatarMode === 'drone' ? 'default' : 'outline'}
+              aria-pressed={gameState.avatarMode === 'drone'}
+              onClick={() => gameState.setAvatarMode('drone')}
+            >
+              <Bot className='size-4' />
+              Drones
+            </Button>
+          </div>
         </div>
         <Dialog>
           <DialogTrigger>

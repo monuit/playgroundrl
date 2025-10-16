@@ -1,7 +1,7 @@
 'use client';
 
 import { Canvas } from '@react-three/fiber';
-import { Preload } from '@react-three/drei';
+import { Preload, View } from '@react-three/drei';
 import { r3f } from '@/lib/scene-portal';
 import { ACESFilmicToneMapping } from 'three';
 import { useEffect } from 'react';
@@ -30,13 +30,16 @@ export default function Scene() {
         width: '100vw',
         height: '100vh',
         pointerEvents: 'none',
+        zIndex: -1,
       }}
       onCreated={(state) => {
         state.gl.toneMapping = ACESFilmicToneMapping;
         state.gl.toneMappingExposure = 1.0;
+        console.log('🎨 Canvas created', state);
       }}
     >
       {/* This is where portaled content appears */}
+      <View.Port />
       <r3f.Out />
       {/* Preload all assets */}
       <Preload all />

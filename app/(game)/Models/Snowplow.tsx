@@ -11,42 +11,52 @@ export default function Snowplow(props: GroupProps) {
     const bodyColors = ['#0f172a', '#1e293b', '#111827']
     const cabinPalette = ['#38bdf8', '#f97316', '#facc15', '#f472b6']
     const plowPalette = ['#f97316', '#facc15', '#fb7185']
+    const beaconPalette = ['#fbbf24', '#f472b6', '#38bdf8']
+
     const bodyColor = new Color(bodyColors[agentIdx % bodyColors.length])
     const cabinColor = new Color(cabinPalette[agentIdx % cabinPalette.length])
     const plowColor = new Color(plowPalette[agentIdx % plowPalette.length])
+    const beaconColor = new Color(beaconPalette[agentIdx % beaconPalette.length])
 
     const body = new MeshStandardMaterial({
       color: bodyColor,
-      metalness: 0.6,
-      roughness: 0.35,
+      metalness: 0.55,
+      roughness: 0.28,
+      emissive: bodyColor.clone().multiplyScalar(0.22),
+      emissiveIntensity: 0.65,
     })
 
     const cabin = new MeshStandardMaterial({
       color: cabinColor,
-      emissive: cabinColor.clone().multiplyScalar(0.35),
-      emissiveIntensity: 1.4,
-      metalness: 0.4,
-      roughness: 0.25,
+      emissive: cabinColor.clone().multiplyScalar(0.55),
+      emissiveIntensity: 1.8,
+      metalness: 0.35,
+      roughness: 0.2,
+      transparent: true,
+      opacity: 0.9,
     })
 
     const plow = new MeshStandardMaterial({
       color: plowColor,
       metalness: 0.5,
-      roughness: 0.3,
-      emissive: plowColor.clone().multiplyScalar(0.2),
+      roughness: 0.25,
+      emissive: plowColor.clone().multiplyScalar(0.35),
+      emissiveIntensity: 1.4,
     })
 
     const light = new MeshStandardMaterial({
-      color: new Color('#fbbf24'),
-      emissive: new Color('#fcd34d'),
-      emissiveIntensity: 2.2,
-      roughness: 0.25,
+      color: beaconColor,
+      emissive: beaconColor.clone().multiplyScalar(1.2),
+      emissiveIntensity: 3,
+      roughness: 0.18,
+      transparent: true,
+      opacity: 0.92,
     })
 
     const wheel = new MeshStandardMaterial({
       color: new Color('#0b1120'),
-      metalness: 0.5,
-      roughness: 0.55,
+      metalness: 0.48,
+      roughness: 0.52,
     })
 
     return { body, cabin, plow, light, wheel }

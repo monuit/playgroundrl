@@ -13,7 +13,7 @@ export default function CloneSnowplow(props: GroupProps) {
         fragmentShader: HologramFragmentShader,
         uniforms: {
           uTime: new Uniform(0),
-          uColor: new Uniform(new Color('#fbbf24')),
+          uColor: new Uniform(new Color('#fde68a')),
         },
         transparent: true,
         side: DoubleSide,

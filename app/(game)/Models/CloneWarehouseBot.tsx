@@ -13,7 +13,7 @@ export default function CloneWarehouseBot(props: GroupProps) {
         fragmentShader: HologramFragmentShader,
         uniforms: {
           uTime: new Uniform(0),
-          uColor: new Uniform(new Color('#38bdf8')),
+          uColor: new Uniform(new Color('#60a5fa')),
         },
         transparent: true,
         side: DoubleSide,

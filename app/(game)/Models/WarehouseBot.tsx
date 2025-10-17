@@ -8,35 +8,44 @@ export default function WarehouseBot(props: GroupProps) {
   const agentIdx = useEnvironment((state) => state.currentAgentIdx)
 
   const materials = useMemo(() => {
-    const bodyPalette = ['#1f2937', '#0f172a', '#111827']
-    const trimPalette = ['#f97316', '#38bdf8', '#a855f7', '#22d3ee']
+    const bodyPalette = ['#1f2937', '#111827', '#0f172a']
+    const trimPalette = ['#38bdf8', '#f97316', '#a855f7', '#22d3ee']
+    const glowPalette = ['#22d3ee', '#fbbf24', '#f472b6', '#38bdf8']
+
     const baseColor = new Color(bodyPalette[agentIdx % bodyPalette.length])
     const trimColor = new Color(trimPalette[agentIdx % trimPalette.length])
+    const glowColor = new Color(glowPalette[agentIdx % glowPalette.length])
 
     const body = new MeshStandardMaterial({
       color: baseColor,
-      metalness: 0.7,
-      roughness: 0.35,
+      metalness: 0.65,
+      roughness: 0.28,
+      emissive: baseColor.clone().multiplyScalar(0.18),
+      emissiveIntensity: 0.7,
     })
 
     const trim = new MeshStandardMaterial({
-      color: baseColor.clone().offsetHSL(0, 0, 0.1),
-      metalness: 0.6,
-      roughness: 0.25,
+      color: trimColor,
+      emissive: trimColor.clone().multiplyScalar(0.65),
+      emissiveIntensity: 1.4,
+      metalness: 0.5,
+      roughness: 0.22,
     })
 
     const light = new MeshStandardMaterial({
-      color: trimColor,
-      emissive: trimColor.clone().multiplyScalar(0.8),
-      emissiveIntensity: 2,
-      metalness: 0.4,
-      roughness: 0.3,
+      color: glowColor,
+      emissive: glowColor.clone().multiplyScalar(1.2),
+      emissiveIntensity: 2.8,
+      metalness: 0.35,
+      roughness: 0.22,
+      transparent: true,
+      opacity: 0.88,
     })
 
     const wheel = new MeshStandardMaterial({
-      color: new Color('#111827'),
-      metalness: 0.4,
-      roughness: 0.6,
+      color: new Color('#020617'),
+      metalness: 0.45,
+      roughness: 0.55,
     })
 
     return { body, trim, light, wheel }

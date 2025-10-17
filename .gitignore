@@ -1,121 +1,19 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-/lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Reference repositories (ignore completely)
-.reference-ppo-bunny/
-.archive-playgroundrl/
-
-# Virtual Environments
-/venv/
-/ENV/
-/env/
-/.venv
-.env
-
-# PyTorch & ML Models
-*.pth
-*.pt
-*.ckpt
-*.h5
-*.pkl
-*.pickle
-*.joblib
-checkpoints/
-models/
-saved_models/
-weights/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb_checkpoints/
-*/.ipynb_checkpoints/*
-
-# TensorBoard & Logs
-logs/
-logs
-tensorboard/
-runs/
-*.log
-*.out
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Data & Media
-data/
-datasets/
-*.csv
-*.dat
-*.npy
-*.npz
-videos/
-*.mp4
-*.avi
-*.gif
-recordings/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.nox/
-coverage.xml
-*.cover
-.hypothesis/
-
-# OS
+### Operating system
 .DS_Store
 Thumbs.db
 desktop.ini
 .Spotlight-V100
 .Trashes
 
-# Temporary files
-tmp/
-temp/
-*.tmp
-*.bak
+### Tooling caches
+.npm/
+.yarn/
+.pnpm-store/
+.pnp.*
+.eslintcache
+.turbo/
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-*.env
-!.env.example
-
-# Gymnasium/RL specific
-ale_py/
-atari_roms/
-
-# Node.js
+### Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -123,111 +21,98 @@ yarn-error.log*
 pnpm-debug.log*
 package-lock.json
 yarn.lock
-pnpm-lock.yaml
-.npm
-.yarn/
-.pnp.*
 
-# Next.js
+### Build outputs
 .next/
 out/
-
-# Build outputs
 build/
 dist/
 coverage/
-
-# Playwright
 .playwright/
-# PyTorch & ML Models
-*.pth
-*.pt
-*.ckpt
-*.h5
-*.pkl
-*.pickle
-*.joblib
-checkpoints/
-models/
-saved_models/
-weights/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb_checkpoints/
-*/.ipynb_checkpoints/*
+### Environment & secrets
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+upstash.env
+.env.edge
+.env.redis
 
-# TensorBoard & Logs
-logs/
-tensorboard/
-runs/
-*.log
-*.out
+### Edge Config
+edge-config.local.json
+edge-config.json
+edge-config/*.json
+.edge-config/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Data & Media
+### Data & media
 data/
 datasets/
+videos/
+recordings/
 *.csv
 *.dat
 *.npy
 *.npz
-videos/
 *.mp4
 *.avi
 *.gif
-recordings/
 
-# Testing
+### Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+venv/
+ENV/
+env/
+.venv/
+checkpoints/
+models/
+saved_models/
+weights/
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+tensorboard/
+runs/
 .pytest_cache/
 .coverage
-htmlcov/
 .tox/
 .nox/
 coverage.xml
 *.cover
 .hypothesis/
 
-# OS
-Thumbs.db
-desktop.ini
-.Spotlight-V100
-.Trashes
-
-# Temporary files
+### Temporary files
 tmp/
 temp/
 *.tmp
 *.bak
 *.swp
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-*.env
+### Project references
+.reference-ppo-bunny/
+.archive-playgroundrl/
 
-# Gymnasium/RL specific
+### Gymnasium / RL assets
 ale_py/
+atari_roms/
 atari_roms/node_modules/
-.next/
-out/
-dist/
-build/
-coverage/
-.playwright/
-.vscode/
-.DS_Store
-.env*
-!.env.example
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
+

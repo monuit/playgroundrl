@@ -726,15 +726,27 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
 
   const gridLines = useMemo(() => {
     const lines: Array<{ from: [number, number, number]; to: [number, number, number] }> = [];
+    let invalidSegments = 0;
     for (let x = 0; x <= maxGridColumn; x += 1) {
       const from = toWorld(x - 0.5, -0.5);
       const to = toWorld(x - 0.5, safeGridHeight - 0.5);
+      if (!isFiniteVector(from) || !isFiniteVector(to)) {
+        invalidSegments += 1;
+        continue;
+      }
       lines.push({ from: [from.x, 0, from.y], to: [to.x, 0, to.y] });
     }
     for (let y = 0; y <= maxGridRow; y += 1) {
       const from = toWorld(-0.5, y - 0.5);
       const to = toWorld(safeGridWidth - 0.5, y - 0.5);
+      if (!isFiniteVector(from) || !isFiniteVector(to)) {
+        invalidSegments += 1;
+        continue;
+      }
       lines.push({ from: [from.x, 0, from.y], to: [to.x, 0, to.y] });
+    }
+    if (invalidSegments > 0 && process.env.NODE_ENV !== "production") {
+      console.warn(`[WarehouseBotsScene] Dropped ${invalidSegments} grid segments due to invalid line coordinates.`);
     }
     return lines;
   }, [maxGridColumn, maxGridRow, safeGridHeight, safeGridWidth, toWorld]);

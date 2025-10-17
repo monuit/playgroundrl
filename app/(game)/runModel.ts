@@ -1,63 +1,89 @@
-import { InferenceSession, Tensor } from 'onnxruntime-web'
+import type { InferenceSession } from 'onnxruntime-web'
 
-import * as ort from 'onnxruntime-web'
+let ortPromise: Promise<typeof import('onnxruntime-web')> | null = null
 
-ort.InferenceSession
-ort.env.wasm.numThreads = 1
-ort.env.wasm.wasmPaths = {
-  'ort-wasm-simd.wasm': '/model/ort-wasm-simd.wasm',
-  'ort-wasm.wasm': '/model/ort-wasm.wasm',
+const ensureOrt = async () => {
+  if (!ortPromise) {
+    ortPromise = import('onnxruntime-web').then((module) => {
+      module.env.wasm.numThreads = 1
+      const existingPaths =
+        typeof module.env.wasm.wasmPaths === 'object' && module.env.wasm.wasmPaths
+          ? module.env.wasm.wasmPaths
+          : undefined
+
+      module.env.wasm.wasmPaths = {
+        ...(existingPaths ?? {}),
+        'ort-wasm-simd.wasm': '/model/ort-wasm-simd.wasm',
+        'ort-wasm.wasm': '/model/ort-wasm.wasm',
+      }
+      return module
+    })
+  }
+
+  return ortPromise
 }
 
 export async function createModelGpu(model: ArrayBuffer): Promise<InferenceSession> {
-  return await InferenceSession.create(model, { executionProviders: ['webgl'] })
+  const ort = await ensureOrt()
+  return ort.InferenceSession.create(model, { executionProviders: ['webgl'] })
 }
+
 export async function createModelCpu(model: ArrayBuffer): Promise<InferenceSession> {
-  return await InferenceSession.create(model, {
+  const ort = await ensureOrt()
+  return ort.InferenceSession.create(model, {
     executionProviders: ['wasm'],
   })
 }
 
 export async function warmupModel(model: InferenceSession, inputSize: number) {
-  // OK. we generate a random input and call Session.run() as a warmup query
-  const warmupTensor = new Tensor('float32', new Float32Array(inputSize), [1, inputSize])
+  if (!model || inputSize <= 0) return
 
-  for (let i = 0; i < inputSize; i++) {
-    warmupTensor.data[i] = 0
-  }
+  const ort = await ensureOrt()
+  const warmupTensor = new ort.Tensor('float32', new Float32Array(inputSize), [1, inputSize])
+  warmupTensor.data.fill(0)
 
   try {
-    const feeds: Record<string, Tensor> = {}
-    feeds[model.inputNames[0]] = warmupTensor
+    const feeds: Record<string, typeof warmupTensor> = {
+      [model.inputNames[0]]: warmupTensor,
+    }
     await model.run(feeds)
-  } catch (e) {
-    console.error(e)
+  } catch (error) {
+    console.error('Warmup failed', error)
   }
 }
 
 export async function runModel(model: InferenceSession, input: number[][], inputSize: number) {
-  const start = new Date()
+  if (!model || inputSize <= 0 || input.length === 0) {
+    return [[], 0]
+  }
+
+  const ort = await ensureOrt()
+  const tensor = new ort.Tensor('float32', new Float32Array(inputSize), [1, inputSize])
+  const feeds: Record<string, typeof tensor> = {
+    [model.inputNames[0]]: tensor,
+  }
+
+  const outputName = model.outputNames[0]
   const outputs: number[] = []
-  const inferenceTimes: number[] = []
+  let totalTime = 0
+
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 
   for (const singleInput of input) {
-    const tensor = new Tensor('float32', new Float32Array(singleInput), [1, inputSize])
+    tensor.data.set(singleInput)
 
     try {
-      const feeds: Record<string, Tensor> = {}
-      feeds[model.inputNames[0]] = tensor
+      const start = now()
       const outputData = await model.run(feeds)
-      const end = new Date()
-      const inferenceTime = end.getTime() - start.getTime()
-      const output = outputData[model.outputNames[0]].data[0]
-      outputs.push(Number(output))
-      inferenceTimes.push(inferenceTime)
-    } catch (e) {
-      console.error(e)
-      throw new Error()
+      totalTime += now() - start
+
+      const rawValue = outputData[outputName]?.data?.[0] ?? 0
+      outputs.push(Number(rawValue))
+    } catch (error) {
+      console.error('Inference failed', error)
+      throw error
     }
   }
 
-  const averageInferenceTime = inferenceTimes.reduce((a, b) => a + b, 0) / inferenceTimes.length
-  return [outputs, averageInferenceTime]
+  return [outputs, totalTime / input.length]
 }

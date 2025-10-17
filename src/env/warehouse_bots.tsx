@@ -94,6 +94,28 @@ const rotateFacing = (facing: Direction, direction: typeof TURN_LEFT | typeof TU
   return next as Direction;
 };
 
+const isFiniteNumber = (value: number): value is number => Number.isFinite(value);
+const isFiniteVector = (value: { x: number; y: number }) =>
+  value !== undefined && isFiniteNumber(value.x) && isFiniteNumber(value.y);
+const clamp01 = (value: number, fallback = 0) => {
+  if (!isFiniteNumber(value)) {
+    return fallback;
+  }
+  if (value <= 0) {
+    return 0;
+  }
+  if (value >= 1) {
+    return 1;
+  }
+  return value;
+};
+const clampGridCoordinate = (value: number, max: number) => {
+  if (!isFiniteNumber(value)) {
+    return 0;
+  }
+  return Math.min(max, Math.max(0, Math.round(value)));
+};
+
 const moveForward = (position: Vector2, facing: Direction) => {
   const delta = new Vector2();
   switch (facing) {
@@ -489,59 +511,156 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
   const shelfRef = useRef<InstancedMesh>(null);
   const stationRef = useRef<InstancedMesh>(null);
   const tempObject = useMemo(() => new Object3D(), []);
+  const halfWidth = useMemo(() => ((GRID_WIDTH - 1) * CELL_SIZE) / 2, []);
+  const halfHeight = useMemo(() => ((GRID_HEIGHT - 1) * CELL_SIZE) / 2, []);
+
+  const sanitizedShelves = useMemo(() => {
+    const entries: typeof resolvedState.shelves = [];
+    resolvedState.shelves.forEach((shelf, index) => {
+      const { position } = shelf ?? {};
+      if (!position || !isFiniteNumber(position.x) || !isFiniteNumber(position.y)) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[WarehouseBotsScene] Skipping invalid shelf entry at index ${index}.`, shelf);
+        }
+        return;
+      }
+      entries.push({
+        ...shelf,
+        position: {
+          x: clampGridCoordinate(position.x, GRID_WIDTH - 1),
+          y: clampGridCoordinate(position.y, GRID_HEIGHT - 1),
+        },
+      });
+    });
+    if (entries.length !== resolvedState.shelves.length && process.env.NODE_ENV !== "production") {
+      console.warn(`[WarehouseBotsScene] Dropped ${resolvedState.shelves.length - entries.length} shelf entries due to invalid data.`);
+    }
+    return entries;
+  }, [resolvedState.shelves]);
+
+  const sanitizedStations = useMemo(() => {
+    const entries: typeof resolvedState.stations = [];
+    resolvedState.stations.forEach((station, index) => {
+      const { position } = station ?? {};
+      if (!position || !isFiniteNumber(position.x) || !isFiniteNumber(position.y)) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[WarehouseBotsScene] Skipping invalid station entry at index ${index}.`, station);
+        }
+        return;
+      }
+      entries.push({
+        ...station,
+        position: {
+          x: clampGridCoordinate(position.x, GRID_WIDTH - 1),
+          y: clampGridCoordinate(position.y, GRID_HEIGHT - 1),
+        },
+        queue: Math.max(0, isFiniteNumber(station.queue) ? station.queue : 0),
+      });
+    });
+    if (entries.length !== resolvedState.stations.length && process.env.NODE_ENV !== "production") {
+      console.warn(`[WarehouseBotsScene] Dropped ${resolvedState.stations.length - entries.length} station entries due to invalid data.`);
+    }
+    return entries;
+  }, [resolvedState.stations]);
+
+  const sanitizedBots = useMemo(() => {
+    const entries: typeof resolvedState.bots = [];
+    resolvedState.bots.forEach((bot, index) => {
+      const { position } = bot ?? {};
+      if (!position || !isFiniteNumber(position.x) || !isFiniteNumber(position.y)) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[WarehouseBotsScene] Skipping invalid bot entry at index ${index}.`, bot);
+        }
+        return;
+      }
+      entries.push({
+        ...bot,
+        position: {
+          x: Math.min(halfWidth, Math.max(-halfWidth, position.x)),
+          y: Math.min(halfHeight, Math.max(-halfHeight, position.y)),
+        },
+        battery: clamp01(bot.battery, 1),
+        velocity: isFiniteNumber(bot.velocity) ? bot.velocity : 0,
+        facing: isFiniteNumber(bot.facing) ? bot.facing : Direction.North,
+      });
+    });
+    if (entries.length !== resolvedState.bots.length && process.env.NODE_ENV !== "production") {
+      console.warn(`[WarehouseBotsScene] Dropped ${resolvedState.bots.length - entries.length} bot entries due to invalid data.`);
+    }
+    return entries;
+  }, [resolvedState.bots, halfHeight, halfWidth]);
 
   useEffect(() => {
     if (!shelfRef.current) {
       return;
     }
-    resolvedState.shelves.forEach((shelf, index) => {
+    let count = 0;
+  sanitizedShelves.forEach((shelf) => {
       const world = gridToWorld(shelf.position.x, shelf.position.y);
+      if (!isFiniteVector(world)) {
+        return;
+      }
       tempObject.position.set(world.x, 5, world.y);
       tempObject.scale.set(0.8, 0.5, 0.8);
       tempObject.updateMatrix();
-      shelfRef.current!.setMatrixAt(index, tempObject.matrix);
-      shelfRef.current!.setColorAt(index, SHELF_COLOR);
+      shelfRef.current!.setMatrixAt(count, tempObject.matrix);
+      shelfRef.current!.setColorAt(count, SHELF_COLOR);
+      count += 1;
     });
-    shelfRef.current.count = resolvedState.shelves.length;
+    shelfRef.current.count = count;
     shelfRef.current.instanceMatrix.needsUpdate = true;
-    shelfRef.current.instanceColor!.needsUpdate = true;
-  }, [resolvedState.shelves, tempObject]);
+    if (shelfRef.current.instanceColor) {
+      shelfRef.current.instanceColor.needsUpdate = true;
+    }
+  }, [sanitizedShelves, tempObject]);
 
   useEffect(() => {
     if (!stationRef.current) {
       return;
     }
-    resolvedState.stations.forEach((station, index) => {
+    let count = 0;
+    sanitizedStations.forEach((station) => {
       const world = gridToWorld(station.position.x, station.position.y);
+      if (!isFiniteVector(world)) {
+        return;
+      }
       tempObject.position.set(world.x, 3, world.y);
       tempObject.scale.set(0.9, 0.4, 0.9);
       tempObject.updateMatrix();
-      stationRef.current!.setMatrixAt(index, tempObject.matrix);
-      const intensity = Math.min(1, station.queue / JOB_BACKLOG_TARGET);
+      stationRef.current!.setMatrixAt(count, tempObject.matrix);
+  const intensity = Math.min(1, Math.max(0, station.queue / JOB_BACKLOG_TARGET));
       const color = STATION_COLOR.clone().lerp(new Color("#f97316"), intensity);
-      stationRef.current!.setColorAt(index, color);
+      stationRef.current!.setColorAt(count, color);
+      count += 1;
     });
-    stationRef.current.count = resolvedState.stations.length;
+    stationRef.current.count = count;
     stationRef.current.instanceMatrix.needsUpdate = true;
-    stationRef.current.instanceColor!.needsUpdate = true;
-  }, [resolvedState.stations, tempObject]);
+    if (stationRef.current.instanceColor) {
+      stationRef.current.instanceColor.needsUpdate = true;
+    }
+  }, [sanitizedStations, tempObject]);
 
   useEffect(() => {
     if (!botRef.current) {
       return;
     }
-    resolvedState.bots.forEach((bot, index) => {
+    let count = 0;
+    sanitizedBots.forEach((bot) => {
+      const heading = isFiniteNumber(bot.facing) ? bot.facing : 0;
       tempObject.position.set(bot.position.x, 6, bot.position.y);
-      tempObject.rotation.set(0, (bot.facing / 4) * Math.PI * 2, 0);
+      tempObject.rotation.set(0, (heading / 4) * Math.PI * 2, 0);
       tempObject.scale.set(1.1, 1.1, 1.1);
       tempObject.updateMatrix();
-      botRef.current!.setMatrixAt(index, tempObject.matrix);
-      botRef.current!.setColorAt(index, bot.id === 0 ? LEADER_COLOR : BOT_COLOR);
+      botRef.current!.setMatrixAt(count, tempObject.matrix);
+      botRef.current!.setColorAt(count, bot.id === 0 ? LEADER_COLOR : BOT_COLOR);
+      count += 1;
     });
-    botRef.current.count = resolvedState.bots.length;
+    botRef.current.count = count;
     botRef.current.instanceMatrix.needsUpdate = true;
-    botRef.current.instanceColor!.needsUpdate = true;
-  }, [resolvedState.bots, tempObject]);
+    if (botRef.current.instanceColor) {
+      botRef.current.instanceColor.needsUpdate = true;
+    }
+  }, [sanitizedBots, tempObject]);
 
   useFrame((state, delta) => {
     if (!botRef.current) {
@@ -588,17 +707,17 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
         <Line key={`grid-${index}`} points={[line.from, line.to]} color="#1e293b" lineWidth={1} opacity={0.5} transparent />
       ))}
 
-      <instancedMesh ref={shelfRef} args={[undefined, undefined, resolvedState.shelves.length]}>
+  <instancedMesh ref={shelfRef} args={[undefined, undefined, sanitizedShelves.length]}>
         <boxGeometry args={[CELL_SIZE * 0.6, 10, CELL_SIZE * 0.6]} />
         <meshStandardMaterial color="#1e293b" metalness={0.2} roughness={0.6} vertexColors />
       </instancedMesh>
 
-      <instancedMesh ref={stationRef} args={[undefined, undefined, resolvedState.stations.length]}>
+  <instancedMesh ref={stationRef} args={[undefined, undefined, sanitizedStations.length]}>
         <boxGeometry args={[CELL_SIZE * 0.8, 6, CELL_SIZE * 0.8]} />
         <meshStandardMaterial emissive="#38bdf8" emissiveIntensity={0.4} vertexColors />
       </instancedMesh>
 
-      <instancedMesh ref={botRef} args={[undefined, undefined, resolvedState.bots.length]}>
+  <instancedMesh ref={botRef} args={[undefined, undefined, sanitizedBots.length]}>
         <boxGeometry args={[CELL_SIZE * 0.5, 8, CELL_SIZE * 0.5]} />
         <meshStandardMaterial emissive="#38bdf8" emissiveIntensity={0.6} metalness={0.4} roughness={0.5} vertexColors />
       </instancedMesh>

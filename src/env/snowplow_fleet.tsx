@@ -77,6 +77,22 @@ const clampToGrid = (value: Vector2) => {
   );
 };
 
+const isFiniteNumber = (value: number): value is number => Number.isFinite(value);
+const isFiniteVector = (value: { x: number; y: number }) =>
+  value !== undefined && isFiniteNumber(value.x) && isFiniteNumber(value.y);
+const clamp01 = (value: number, fallback = 0) => {
+  if (!isFiniteNumber(value)) {
+    return fallback;
+  }
+  if (value <= 0) {
+    return 0;
+  }
+  if (value >= 1) {
+    return 1;
+  }
+  return value;
+};
+
 const toTile = (position: Vector2) => {
   const half = ((GRID_SIZE - 1) * CELL_SIZE) / 2;
   const x = Math.min(
@@ -423,6 +439,73 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
   const tempObject = useMemo(() => new Object3D(), []);
   const snowflakeRef = useRef<InstancedMesh>(null);
 
+  const sanitizedSnowDepth = useMemo(() => {
+    let invalidEntries = 0;
+    const values = resolvedState.snowDepth.map((depth) => {
+      if (!isFiniteNumber(depth)) {
+        invalidEntries += 1;
+        return 0;
+      }
+      return Math.max(0, depth);
+    });
+    if (invalidEntries > 0 && process.env.NODE_ENV !== "production") {
+      console.warn(`[SnowplowFleetScene] Dropped ${invalidEntries} non-finite snow-depth readings.`);
+    }
+    return values;
+  }, [resolvedState.snowDepth]);
+
+  const sanitizedPlows = useMemo<SnowplowFleetRenderableState["plows"]>(() => {
+    const entries: SnowplowFleetRenderableState["plows"] = [];
+    resolvedState.plows.forEach((plow, index) => {
+      const { position } = plow;
+      if (!position || !isFiniteNumber(position.x) || !isFiniteNumber(position.y) || !isFiniteNumber(plow.heading)) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[SnowplowFleetScene] Skipping invalid plow entry at index ${index}.`, plow);
+        }
+        return;
+      }
+      const clampedPosition = clampToGrid(new Vector2(position.x, position.y));
+      entries.push({
+        id: plow.id,
+        position: { x: clampedPosition.x, y: clampedPosition.y },
+        heading: plow.heading,
+        speed: isFiniteNumber(plow.speed) ? plow.speed : MIN_SPEED,
+        plowAngle: isFiniteNumber(plow.plowAngle) ? plow.plowAngle : 0,
+        salt: clamp01(plow.salt, 1),
+        fuel: clamp01(plow.fuel, 1),
+      });
+    });
+    return entries;
+  }, [resolvedState.plows]);
+
+  const sanitizedVehicles = useMemo<SnowplowFleetRenderableState["vehicles"]>(() => {
+    const entries: SnowplowFleetRenderableState["vehicles"] = [];
+    resolvedState.vehicles.forEach((vehicle, index) => {
+      const { position } = vehicle;
+      if (!position || !isFiniteNumber(position.x) || !isFiniteNumber(position.y) || !isFiniteNumber(vehicle.heading)) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[SnowplowFleetScene] Skipping invalid vehicle entry at index ${index}.`, vehicle);
+        }
+        return;
+      }
+      const clampedPosition = clampToGrid(new Vector2(position.x, position.y));
+      entries.push({
+        id: vehicle.id,
+        position: { x: clampedPosition.x, y: clampedPosition.y },
+        heading: vehicle.heading,
+      });
+    });
+    return entries;
+  }, [resolvedState.vehicles]);
+
+  const clampedWeatherIntensity = useMemo(() => {
+    const value = clamp01(resolvedState.weatherIntensity, 0.5);
+    if (!isFiniteNumber(resolvedState.weatherIntensity) && process.env.NODE_ENV !== "production") {
+      console.warn(`[SnowplowFleetScene] Non-finite weather intensity encountered:`, resolvedState.weatherIntensity);
+    }
+    return value;
+  }, [resolvedState.weatherIntensity]);
+
   const snowPositions = useMemo(() => {
     const positions: Array<{ position: Vector2; index: number }> = [];
     let index = 0;
@@ -441,6 +524,9 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
       return;
     }
     snowPositions.forEach(({ position, index }) => {
+      if (!isFiniteVector(position)) {
+        return;
+      }
       tempObject.position.set(position.x, 0, position.y);
       tempObject.scale.set(1, 1, 1);
       tempObject.updateMatrix();
@@ -453,47 +539,57 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
     if (!snowRef.current) {
       return;
     }
-    resolvedState.snowDepth.forEach((depth, index) => {
+    sanitizedSnowDepth.forEach((depth, index) => {
       const color = CLEAR_COLOR.clone().lerp(SNOW_COLOR, Math.min(1, depth));
       snowRef.current!.setColorAt(index, color);
     });
-    snowRef.current.instanceColor!.needsUpdate = true;
-  }, [resolvedState.snowDepth]);
+    if (snowRef.current.instanceColor) {
+      snowRef.current.instanceColor.needsUpdate = true;
+    }
+  }, [sanitizedSnowDepth]);
 
   useEffect(() => {
     if (!plowRef.current) {
       return;
     }
-    resolvedState.plows.forEach((plow, index) => {
+    let count = 0;
+    sanitizedPlows.forEach((plow) => {
       tempObject.position.set(plow.position.x, 4, plow.position.y);
       tempObject.rotation.set(0, plow.heading, 0);
       tempObject.scale.set(1.2, 1.2, 1.2);
       tempObject.updateMatrix();
-      plowRef.current!.setMatrixAt(index, tempObject.matrix);
+      plowRef.current!.setMatrixAt(count, tempObject.matrix);
       const color = PLOW_COLOR.clone().lerp(new Color("#16a34a"), Math.max(0, 1 - plow.fuel));
-      plowRef.current!.setColorAt(index, color);
+      plowRef.current!.setColorAt(count, color);
+      count += 1;
     });
-    plowRef.current.count = resolvedState.plows.length;
+    plowRef.current.count = count;
     plowRef.current.instanceMatrix.needsUpdate = true;
-    plowRef.current.instanceColor!.needsUpdate = true;
-  }, [resolvedState.plows, tempObject]);
+    if (plowRef.current.instanceColor) {
+      plowRef.current.instanceColor.needsUpdate = true;
+    }
+  }, [sanitizedPlows, tempObject]);
 
   useEffect(() => {
     if (!vehicleRef.current) {
       return;
     }
-    resolvedState.vehicles.forEach((vehicle, index) => {
+    let count = 0;
+    sanitizedVehicles.forEach((vehicle) => {
       tempObject.position.set(vehicle.position.x, 2, vehicle.position.y);
       tempObject.rotation.set(0, vehicle.heading, 0);
       tempObject.scale.set(1, 1, 1);
       tempObject.updateMatrix();
-      vehicleRef.current!.setMatrixAt(index, tempObject.matrix);
-      vehicleRef.current!.setColorAt(index, VEHICLE_COLOR);
+      vehicleRef.current!.setMatrixAt(count, tempObject.matrix);
+      vehicleRef.current!.setColorAt(count, VEHICLE_COLOR);
+      count += 1;
     });
-    vehicleRef.current.count = resolvedState.vehicles.length;
+    vehicleRef.current.count = count;
     vehicleRef.current.instanceMatrix.needsUpdate = true;
-    vehicleRef.current.instanceColor!.needsUpdate = true;
-  }, [resolvedState.vehicles, tempObject]);
+    if (vehicleRef.current.instanceColor) {
+      vehicleRef.current.instanceColor.needsUpdate = true;
+    }
+  }, [sanitizedVehicles, tempObject]);
 
   useEffect(() => {
     if (!snowflakeRef.current) {
@@ -516,7 +612,7 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
     if (snowflakeRef.current) {
       for (let i = 0; i < snowflakeRef.current.count; i += 1) {
         snowflakeRef.current.getMatrixAt(i, tempObject.matrix);
-        tempObject.position.y -= delta * 10 * resolvedState.weatherIntensity;
+        tempObject.position.y -= delta * 10 * clampedWeatherIntensity;
         if (tempObject.position.y < 0) {
           tempObject.position.y = 80 + Math.random() * 20;
         }
@@ -544,17 +640,17 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
         <meshStandardMaterial color="#0f172a" roughness={0.95} metalness={0.1} />
       </mesh>
 
-      <instancedMesh ref={snowRef} args={[undefined, undefined, resolvedState.snowDepth.length]}>
+      <instancedMesh ref={snowRef} args={[undefined, undefined, sanitizedSnowDepth.length]}>
         <boxGeometry args={[CELL_SIZE * 0.95, 1.2, CELL_SIZE * 0.95]} />
         <meshStandardMaterial emissive="#38bdf8" emissiveIntensity={0.12} vertexColors />
       </instancedMesh>
 
-      <instancedMesh ref={plowRef} args={[undefined, undefined, resolvedState.plows.length]}>
+      <instancedMesh ref={plowRef} args={[undefined, undefined, sanitizedPlows.length]}>
         <boxGeometry args={[CELL_SIZE * 0.8, 6, CELL_SIZE * 1.4]} />
         <meshStandardMaterial emissive="#fbbf24" emissiveIntensity={0.5} vertexColors />
       </instancedMesh>
 
-      <instancedMesh ref={vehicleRef} args={[undefined, undefined, resolvedState.vehicles.length]}>
+      <instancedMesh ref={vehicleRef} args={[undefined, undefined, sanitizedVehicles.length]}>
         <boxGeometry args={[CELL_SIZE * 0.6, 4, CELL_SIZE]} />
         <meshStandardMaterial emissive="#94a3b8" emissiveIntensity={0.3} vertexColors />
       </instancedMesh>

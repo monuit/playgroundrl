@@ -1,0 +1,32 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { Layout } from "@/components/dom/AppLayout";
+import "./globals.css";
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "PlaygroundRL",
+  description:
+    "In-browser reinforcement learning playground with TensorFlow.js, R3F, and Pyodide backends.",
+  icons: {
+    icon: "/favicon.png",
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} bg-slate-950 antialiased`}>
+        <Layout>{children}</Layout>
+      </body>
+    </html>
+  );
+}

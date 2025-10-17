@@ -130,7 +130,7 @@ export default function Page() {
                 Run <Rabbit className='size-4' />
               </Button>
               <Dialog>
-                <DialogTrigger>
+                <DialogTrigger asChild>
                   <Button size='lg' className='flex flex-row gap-2' variant='outline'>
                     Info <Info className='size-4' />
                   </Button>
@@ -276,7 +276,7 @@ export default function Page() {
           </div>
         </div>
         <Dialog>
-          <DialogTrigger>
+          <DialogTrigger asChild>
             <Button variant='outline' size='lg' className='flex flex-row gap-2 items-center '>
               Model Details <Zap className='size-4 fill-yellow-500' />
             </Button>
@@ -284,6 +284,9 @@ export default function Page() {
           <DialogContent className='max-w-[90%] sm:max-w-lg bg-card max-h-[70%] overflow-y-auto text-xs'>
             <DialogHeader className='pb-4 text-base underline'>
               <DialogTitle>MODEL DETAILS</DialogTitle>
+              <DialogDescription className='sr-only'>
+                Reinforcement learning PPO architecture overview, hyperparameters, and training notes.
+              </DialogDescription>
             </DialogHeader>
             <div>
               <h3 className='font-bold text-red-500 text-sm pb-2'>Actor-Critic Architecture:</h3>

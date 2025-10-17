@@ -21,7 +21,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import LevelTwo from './LevelTwo'
 
 const View = dynamic(() => import('@/components/canvas/View').then((mod) => mod.View), {
@@ -31,6 +31,7 @@ const View = dynamic(() => import('@/components/canvas/View').then((mod) => mod.
 export default function Page() {
   const environment = useEnvironment()
   const gameState = useGameState()
+  const lastLevelRef = useRef(gameState.currentLvl)
 
   const initialAnimation = useSpring({
     opacity: gameState.state === 'INITIAL' ? 1 : 0,
@@ -71,12 +72,15 @@ export default function Page() {
   useEffect(() => {
     if (!isMounted) return
 
-    if (gameState.currentLvl === 1 && gameState.avatarMode === 'drone') {
-      gameState.setAvatarMode('bunny')
-    } else if (gameState.currentLvl === 2 && gameState.avatarMode === 'bunny') {
-      gameState.setAvatarMode('drone')
+    if (gameState.currentLvl !== lastLevelRef.current) {
+      if (gameState.currentLvl === 1 && gameState.avatarMode !== 'bunny') {
+        gameState.setAvatarMode('bunny')
+      } else if (gameState.currentLvl === 2 && gameState.avatarMode !== 'drone') {
+        gameState.setAvatarMode('drone')
+      }
+      lastLevelRef.current = gameState.currentLvl
     }
-  }, [gameState, isMounted])
+  }, [gameState.avatarMode, gameState.currentLvl, gameState.setAvatarMode, isMounted])
 
   if (!isMounted) {
     return null

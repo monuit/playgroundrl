@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Color, InstancedMesh, Object3D, Vector2 } from "three";
 import type { Env, EnvFactory, EnvObservation, EnvStepResult } from "./types";
@@ -69,8 +69,8 @@ export interface SnowplowFleetRenderableState {
 
 const gridIndex = (x: number, y: number) => y * GRID_SIZE + x;
 
-const clampToGrid = (value: Vector2) => {
-  const half = ((GRID_SIZE - 1) * CELL_SIZE) / 2;
+const clampToGrid = (value: Vector2, gridSize = GRID_SIZE, cellSize = CELL_SIZE) => {
+  const half = ((gridSize - 1) * cellSize) / 2;
   return new Vector2(
     Math.max(-half, Math.min(half, value.x)),
     Math.max(-half, Math.min(half, value.y))
@@ -433,6 +433,47 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
     return fallback;
   }, [state, fallback]);
 
+  const safeGridSize = useMemo(() => {
+    const valid = isFiniteNumber(resolvedState.gridSize) && resolvedState.gridSize > 0;
+    if (!valid && process.env.NODE_ENV !== "production") {
+      console.warn(
+        `[SnowplowFleetScene] Received non-finite gridSize. Falling back to default.`,
+        resolvedState.gridSize,
+      );
+    }
+    return valid ? resolvedState.gridSize : GRID_SIZE;
+  }, [resolvedState.gridSize]);
+
+  const safeCellSize = useMemo(() => {
+    const valid = isFiniteNumber(resolvedState.cellSize) && resolvedState.cellSize > 0;
+    if (!valid && process.env.NODE_ENV !== "production") {
+      console.warn(
+        `[SnowplowFleetScene] Received non-finite cellSize. Falling back to default.`,
+        resolvedState.cellSize,
+      );
+    }
+    return valid ? resolvedState.cellSize : CELL_SIZE;
+  }, [resolvedState.cellSize]);
+
+  const roundedGridSize = useMemo(() => Math.max(0, Math.round(safeGridSize)), [safeGridSize]);
+  const halfExtent = useMemo(
+    () => ((safeGridSize - 1) * safeCellSize) / 2,
+    [safeCellSize, safeGridSize],
+  );
+
+  const clampPositionToScene = useCallback(
+    (value: Vector2) => clampToGrid(value, safeGridSize, safeCellSize),
+    [safeCellSize, safeGridSize],
+  );
+
+  const toWorld = useCallback(
+    (x: number, y: number) =>
+      new Vector2(x * safeCellSize - halfExtent, y * safeCellSize - halfExtent),
+    [halfExtent, safeCellSize],
+  );
+
+  const groundSpan = useMemo(() => safeGridSize * safeCellSize, [safeCellSize, safeGridSize]);
+
   const snowRef = useRef<InstancedMesh>(null);
   const plowRef = useRef<InstancedMesh>(null);
   const vehicleRef = useRef<InstancedMesh>(null);
@@ -440,19 +481,32 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
   const snowflakeRef = useRef<InstancedMesh>(null);
 
   const sanitizedSnowDepth = useMemo(() => {
+    const expectedCount = roundedGridSize * roundedGridSize;
+    const values: number[] = new Array(expectedCount).fill(0);
     let invalidEntries = 0;
-    const values = resolvedState.snowDepth.map((depth) => {
+
+    for (let index = 0; index < expectedCount; index += 1) {
+      const depth = resolvedState.snowDepth[index];
       if (!isFiniteNumber(depth)) {
         invalidEntries += 1;
-        return 0;
+        continue;
       }
-      return Math.max(0, depth);
-    });
-    if (invalidEntries > 0 && process.env.NODE_ENV !== "production") {
-      console.warn(`[SnowplowFleetScene] Dropped ${invalidEntries} non-finite snow-depth readings.`);
+      values[index] = Math.max(0, depth);
     }
+
+    if (process.env.NODE_ENV !== "production") {
+      if (invalidEntries > 0) {
+        console.warn(`[SnowplowFleetScene] Dropped ${invalidEntries} non-finite snow-depth readings.`);
+      }
+      if (resolvedState.snowDepth.length !== expectedCount) {
+        console.warn(
+          `[SnowplowFleetScene] Snow depth array length (${resolvedState.snowDepth.length}) did not match expected grid tiles (${expectedCount}). Excess entries were ignored.`,
+        );
+      }
+    }
+
     return values;
-  }, [resolvedState.snowDepth]);
+  }, [resolvedState.snowDepth, roundedGridSize]);
 
   const sanitizedPlows = useMemo<SnowplowFleetRenderableState["plows"]>(() => {
     const entries: SnowplowFleetRenderableState["plows"] = [];
@@ -464,7 +518,7 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
         }
         return;
       }
-      const clampedPosition = clampToGrid(new Vector2(position.x, position.y));
+      const clampedPosition = clampPositionToScene(new Vector2(position.x, position.y));
       entries.push({
         id: plow.id,
         position: { x: clampedPosition.x, y: clampedPosition.y },
@@ -476,7 +530,7 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
       });
     });
     return entries;
-  }, [resolvedState.plows]);
+  }, [clampPositionToScene, resolvedState.plows]);
 
   const sanitizedVehicles = useMemo<SnowplowFleetRenderableState["vehicles"]>(() => {
     const entries: SnowplowFleetRenderableState["vehicles"] = [];
@@ -488,7 +542,7 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
         }
         return;
       }
-      const clampedPosition = clampToGrid(new Vector2(position.x, position.y));
+      const clampedPosition = clampPositionToScene(new Vector2(position.x, position.y));
       entries.push({
         id: vehicle.id,
         position: { x: clampedPosition.x, y: clampedPosition.y },
@@ -496,7 +550,7 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
       });
     });
     return entries;
-  }, [resolvedState.vehicles]);
+  }, [clampPositionToScene, resolvedState.vehicles]);
 
   const clampedWeatherIntensity = useMemo(() => {
     const value = clamp01(resolvedState.weatherIntensity, 0.5);
@@ -509,15 +563,23 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
   const snowPositions = useMemo(() => {
     const positions: Array<{ position: Vector2; index: number }> = [];
     let index = 0;
-    for (let y = 0; y < resolvedState.gridSize; y += 1) {
-      for (let x = 0; x < resolvedState.gridSize; x += 1) {
-        const half = ((resolvedState.gridSize - 1) * resolvedState.cellSize) / 2;
-        positions.push({ position: new Vector2(x * resolvedState.cellSize - half, y * resolvedState.cellSize - half), index });
+    for (let y = 0; y < roundedGridSize; y += 1) {
+      for (let x = 0; x < roundedGridSize; x += 1) {
+        let world = toWorld(x, y);
+        if (!isFiniteVector(world)) {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn(
+              `[SnowplowFleetScene] Encountered non-finite snow tile position at (${x}, ${y}). Using origin fallback.`,
+            );
+          }
+          world = new Vector2(0, 0);
+        }
+        positions.push({ position: world, index });
         index += 1;
       }
     }
     return positions;
-  }, [resolvedState.gridSize, resolvedState.cellSize]);
+  }, [roundedGridSize, toWorld]);
 
   useEffect(() => {
     if (!snowRef.current) {
@@ -532,6 +594,7 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
       tempObject.updateMatrix();
       snowRef.current!.setMatrixAt(index, tempObject.matrix);
     });
+    snowRef.current.count = snowPositions.length;
     snowRef.current.instanceMatrix.needsUpdate = true;
   }, [snowPositions, tempObject]);
 
@@ -596,8 +659,8 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
       return;
     }
     for (let i = 0; i < snowflakeRef.current.count; i += 1) {
-      const randX = (Math.random() - 0.5) * GRID_SIZE * CELL_SIZE;
-      const randZ = (Math.random() - 0.5) * GRID_SIZE * CELL_SIZE;
+      const randX = (Math.random() - 0.5) * groundSpan;
+      const randZ = (Math.random() - 0.5) * groundSpan;
       const randY = 60 + Math.random() * 40;
       tempObject.position.set(randX, randY, randZ);
       const scale = 0.5 + Math.random() * 0.8;
@@ -606,7 +669,7 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
       snowflakeRef.current.setMatrixAt(i, tempObject.matrix);
     }
     snowflakeRef.current.instanceMatrix.needsUpdate = true;
-  }, [tempObject]);
+  }, [groundSpan, tempObject]);
 
   useFrame((state, delta) => {
     if (snowflakeRef.current) {
@@ -636,22 +699,22 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
       <directionalLight position={[-140, 180, -160]} intensity={1.4} color={0x93c5fd} />
 
       <mesh position={[0, -6, 0]} receiveShadow>
-        <boxGeometry args={[GRID_SIZE * CELL_SIZE * 1.2, 8, GRID_SIZE * CELL_SIZE * 1.2]} />
+        <boxGeometry args={[groundSpan * 1.2, 8, groundSpan * 1.2]} />
         <meshStandardMaterial color="#0f172a" roughness={0.95} metalness={0.1} />
       </mesh>
 
       <instancedMesh ref={snowRef} args={[undefined, undefined, sanitizedSnowDepth.length]}>
-        <boxGeometry args={[CELL_SIZE * 0.95, 1.2, CELL_SIZE * 0.95]} />
+        <boxGeometry args={[safeCellSize * 0.95, 1.2, safeCellSize * 0.95]} />
         <meshStandardMaterial emissive="#38bdf8" emissiveIntensity={0.12} vertexColors />
       </instancedMesh>
 
       <instancedMesh ref={plowRef} args={[undefined, undefined, sanitizedPlows.length]}>
-        <boxGeometry args={[CELL_SIZE * 0.8, 6, CELL_SIZE * 1.4]} />
+        <boxGeometry args={[safeCellSize * 0.8, 6, safeCellSize * 1.4]} />
         <meshStandardMaterial emissive="#fbbf24" emissiveIntensity={0.5} vertexColors />
       </instancedMesh>
 
       <instancedMesh ref={vehicleRef} args={[undefined, undefined, sanitizedVehicles.length]}>
-        <boxGeometry args={[CELL_SIZE * 0.6, 4, CELL_SIZE]} />
+        <boxGeometry args={[safeCellSize * 0.6, 4, safeCellSize]} />
         <meshStandardMaterial emissive="#94a3b8" emissiveIntensity={0.3} vertexColors />
       </instancedMesh>
 

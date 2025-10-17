@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import { Color, InstancedMesh, Object3D, Vector2 } from "three";
@@ -509,12 +509,59 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
     return fallback;
   }, [state, fallback]);
 
+  const safeDimensions = useMemo(() => {
+    const widthValid = isFiniteNumber(resolvedState.gridWidth) && resolvedState.gridWidth > 0;
+    const heightValid = isFiniteNumber(resolvedState.gridHeight) && resolvedState.gridHeight > 0;
+    const cellSizeValid = isFiniteNumber(resolvedState.cellSize) && resolvedState.cellSize > 0;
+
+    if (process.env.NODE_ENV !== "production") {
+      if (!widthValid) {
+        console.warn(
+          `[WarehouseBotsScene] Received non-finite gridWidth. Falling back to default.`,
+          resolvedState.gridWidth,
+        );
+      }
+      if (!heightValid) {
+        console.warn(
+          `[WarehouseBotsScene] Received non-finite gridHeight. Falling back to default.`,
+          resolvedState.gridHeight,
+        );
+      }
+      if (!cellSizeValid) {
+        console.warn(
+          `[WarehouseBotsScene] Received non-finite cellSize. Falling back to default.`,
+          resolvedState.cellSize,
+        );
+      }
+    }
+
+    return {
+      gridWidth: widthValid ? resolvedState.gridWidth : GRID_WIDTH,
+      gridHeight: heightValid ? resolvedState.gridHeight : GRID_HEIGHT,
+      cellSize: cellSizeValid ? resolvedState.cellSize : CELL_SIZE,
+    };
+  }, [resolvedState.gridWidth, resolvedState.gridHeight, resolvedState.cellSize]);
+
+  const { gridWidth: safeGridWidth, gridHeight: safeGridHeight, cellSize: safeCellSize } = safeDimensions;
+
   const botRef = useRef<InstancedMesh>(null);
   const shelfRef = useRef<InstancedMesh>(null);
   const stationRef = useRef<InstancedMesh>(null);
   const tempObject = useMemo(() => new Object3D(), []);
-  const halfWidth = useMemo(() => ((GRID_WIDTH - 1) * CELL_SIZE) / 2, []);
-  const halfHeight = useMemo(() => ((GRID_HEIGHT - 1) * CELL_SIZE) / 2, []);
+  const halfWidth = useMemo(() => ((safeGridWidth - 1) * safeCellSize) / 2, [safeGridWidth, safeCellSize]);
+  const halfHeight = useMemo(() => ((safeGridHeight - 1) * safeCellSize) / 2, [safeGridHeight, safeCellSize]);
+
+  const maxGridColumn = useMemo(() => Math.max(0, Math.round(safeGridWidth)), [safeGridWidth]);
+  const maxGridRow = useMemo(() => Math.max(0, Math.round(safeGridHeight)), [safeGridHeight]);
+
+  const toWorld = useCallback(
+    (x: number, y: number) => {
+      const originX = ((safeGridWidth - 1) * safeCellSize) / 2;
+      const originY = ((safeGridHeight - 1) * safeCellSize) / 2;
+      return new Vector2(x * safeCellSize - originX, y * safeCellSize - originY);
+    },
+    [safeGridWidth, safeGridHeight, safeCellSize],
+  );
 
   const sanitizedShelves = useMemo(() => {
     const entries: typeof resolvedState.shelves = [];
@@ -529,8 +576,8 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
       entries.push({
         ...shelf,
         position: {
-          x: clampGridCoordinate(position.x, GRID_WIDTH - 1),
-          y: clampGridCoordinate(position.y, GRID_HEIGHT - 1),
+          x: clampGridCoordinate(position.x, Math.max(0, Math.round(safeGridWidth - 1))),
+          y: clampGridCoordinate(position.y, Math.max(0, Math.round(safeGridHeight - 1))),
         },
       });
     });
@@ -538,7 +585,7 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
       console.warn(`[WarehouseBotsScene] Dropped ${resolvedState.shelves.length - entries.length} shelf entries due to invalid data.`);
     }
     return entries;
-  }, [resolvedState.shelves]);
+  }, [resolvedState.shelves, safeGridHeight, safeGridWidth]);
 
   const sanitizedStations = useMemo(() => {
     const entries: typeof resolvedState.stations = [];
@@ -553,8 +600,8 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
       entries.push({
         ...station,
         position: {
-          x: clampGridCoordinate(position.x, GRID_WIDTH - 1),
-          y: clampGridCoordinate(position.y, GRID_HEIGHT - 1),
+          x: clampGridCoordinate(position.x, Math.max(0, Math.round(safeGridWidth - 1))),
+          y: clampGridCoordinate(position.y, Math.max(0, Math.round(safeGridHeight - 1))),
         },
         queue: Math.max(0, isFiniteNumber(station.queue) ? station.queue : 0),
       });
@@ -563,7 +610,7 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
       console.warn(`[WarehouseBotsScene] Dropped ${resolvedState.stations.length - entries.length} station entries due to invalid data.`);
     }
     return entries;
-  }, [resolvedState.stations]);
+  }, [resolvedState.stations, safeGridHeight, safeGridWidth]);
 
   const sanitizedBots = useMemo(() => {
     const entries: typeof resolvedState.bots = [];
@@ -598,7 +645,7 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
     }
     let count = 0;
   sanitizedShelves.forEach((shelf) => {
-      const world = gridToWorld(shelf.position.x, shelf.position.y);
+  const world = toWorld(shelf.position.x, shelf.position.y);
       if (!isFiniteVector(world)) {
         return;
       }
@@ -614,7 +661,7 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
     if (shelfRef.current.instanceColor) {
       shelfRef.current.instanceColor.needsUpdate = true;
     }
-  }, [sanitizedShelves, tempObject]);
+  }, [sanitizedShelves, tempObject, toWorld]);
 
   useEffect(() => {
     if (!stationRef.current) {
@@ -622,7 +669,7 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
     }
     let count = 0;
     sanitizedStations.forEach((station) => {
-      const world = gridToWorld(station.position.x, station.position.y);
+  const world = toWorld(station.position.x, station.position.y);
       if (!isFiniteVector(world)) {
         return;
       }
@@ -640,7 +687,7 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
     if (stationRef.current.instanceColor) {
       stationRef.current.instanceColor.needsUpdate = true;
     }
-  }, [sanitizedStations, tempObject]);
+  }, [sanitizedStations, tempObject, toWorld]);
 
   useEffect(() => {
     if (!botRef.current) {
@@ -679,20 +726,20 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
 
   const gridLines = useMemo(() => {
     const lines: Array<{ from: [number, number, number]; to: [number, number, number] }> = [];
-    for (let x = 0; x <= GRID_WIDTH; x += 1) {
-      const from = gridToWorld(x - 0.5, -0.5);
-      const to = gridToWorld(x - 0.5, GRID_HEIGHT - 0.5);
+    for (let x = 0; x <= maxGridColumn; x += 1) {
+      const from = toWorld(x - 0.5, -0.5);
+      const to = toWorld(x - 0.5, safeGridHeight - 0.5);
       lines.push({ from: [from.x, 0, from.y], to: [to.x, 0, to.y] });
     }
-    for (let y = 0; y <= GRID_HEIGHT; y += 1) {
-      const from = gridToWorld(-0.5, y - 0.5);
-      const to = gridToWorld(GRID_WIDTH - 0.5, y - 0.5);
+    for (let y = 0; y <= maxGridRow; y += 1) {
+      const from = toWorld(-0.5, y - 0.5);
+      const to = toWorld(safeGridWidth - 0.5, y - 0.5);
       lines.push({ from: [from.x, 0, from.y], to: [to.x, 0, to.y] });
     }
     return lines;
-  }, []);
+  }, [maxGridColumn, maxGridRow, safeGridHeight, safeGridWidth, toWorld]);
 
-  const chargerPosition = useMemo(() => gridToWorld(0, GRID_HEIGHT - 1), []);
+  const chargerPosition = useMemo(() => toWorld(0, safeGridHeight - 1), [safeGridHeight, toWorld]);
 
   return (
     <group>

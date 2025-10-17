@@ -510,12 +510,14 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
 
   const sanitizedPlows = useMemo<SnowplowFleetRenderableState["plows"]>(() => {
     const entries: SnowplowFleetRenderableState["plows"] = [];
+    let dropped = 0;
     resolvedState.plows.forEach((plow, index) => {
       const { position } = plow;
       if (!position || !isFiniteNumber(position.x) || !isFiniteNumber(position.y) || !isFiniteNumber(plow.heading)) {
         if (process.env.NODE_ENV !== "production") {
           console.warn(`[SnowplowFleetScene] Skipping invalid plow entry at index ${index}.`, plow);
         }
+        dropped += 1;
         return;
       }
       const clampedPosition = clampPositionToScene(new Vector2(position.x, position.y));
@@ -529,17 +531,22 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
         fuel: clamp01(plow.fuel, 1),
       });
     });
+    if (dropped > 0 && process.env.NODE_ENV !== "production") {
+      console.warn(`[SnowplowFleetScene] Dropped ${dropped} plow entries due to invalid data.`);
+    }
     return entries;
   }, [clampPositionToScene, resolvedState.plows]);
 
   const sanitizedVehicles = useMemo<SnowplowFleetRenderableState["vehicles"]>(() => {
     const entries: SnowplowFleetRenderableState["vehicles"] = [];
+    let dropped = 0;
     resolvedState.vehicles.forEach((vehicle, index) => {
       const { position } = vehicle;
       if (!position || !isFiniteNumber(position.x) || !isFiniteNumber(position.y) || !isFiniteNumber(vehicle.heading)) {
         if (process.env.NODE_ENV !== "production") {
           console.warn(`[SnowplowFleetScene] Skipping invalid vehicle entry at index ${index}.`, vehicle);
         }
+        dropped += 1;
         return;
       }
       const clampedPosition = clampPositionToScene(new Vector2(position.x, position.y));
@@ -549,6 +556,9 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
         heading: vehicle.heading,
       });
     });
+    if (dropped > 0 && process.env.NODE_ENV !== "production") {
+      console.warn(`[SnowplowFleetScene] Dropped ${dropped} vehicle entries due to invalid data.`);
+    }
     return entries;
   }, [clampPositionToScene, resolvedState.vehicles]);
 
@@ -563,20 +573,22 @@ export const SnowplowFleetScene = memo(function SnowplowFleetScene({
   const snowPositions = useMemo(() => {
     const positions: Array<{ position: Vector2; index: number }> = [];
     let index = 0;
+    let invalidTiles = 0;
     for (let y = 0; y < roundedGridSize; y += 1) {
       for (let x = 0; x < roundedGridSize; x += 1) {
         let world = toWorld(x, y);
         if (!isFiniteVector(world)) {
-          if (process.env.NODE_ENV !== "production") {
-            console.warn(
-              `[SnowplowFleetScene] Encountered non-finite snow tile position at (${x}, ${y}). Using origin fallback.`,
-            );
-          }
+          invalidTiles += 1;
           world = new Vector2(0, 0);
         }
         positions.push({ position: world, index });
         index += 1;
       }
+    }
+    if (invalidTiles > 0 && process.env.NODE_ENV !== "production") {
+      console.warn(
+        `[SnowplowFleetScene] Fallback to origin for ${invalidTiles} snow tiles due to invalid coordinates.`,
+      );
     }
     return positions;
   }, [roundedGridSize, toWorld]);

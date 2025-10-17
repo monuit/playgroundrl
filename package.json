@@ -41,7 +41,7 @@
   "lamina": "1.1.23",
     "leva": "^0.9.35",
     "lucide-react": "^0.344.0",
-    "next": "^14.0.4",
+    "next": "^14.2.33",
     "next-themes": "^0.3.0",
     "node-polyfill-webpack-plugin": "^3.0.0",
     "onnxruntime-web": "^1.17.1",

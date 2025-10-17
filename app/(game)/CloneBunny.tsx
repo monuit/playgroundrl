@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
-import { AdditiveBlending, Color, DoubleSide, Mesh, ShaderMaterial, Uniform } from 'three'
+import { AdditiveBlending, Color, DoubleSide, Mesh, ShaderMaterial, Uniform, type Material } from 'three'
 import { GroupProps, useFrame } from '@react-three/fiber'
 import { vertex as HologramVertexShader } from './shaders/hologram/vertex'
 import { fragment as HologramFragmentShader } from './shaders/hologram/fragment'
@@ -17,32 +17,39 @@ export default function CloneBunny(props: GroupProps) {
   //   side: 2,
   // })
 
-  const material = new ShaderMaterial({
-    vertexShader: HologramVertexShader,
-    fragmentShader: HologramFragmentShader,
-    uniforms: {
-      uTime: new Uniform(0),
-      uColor: new Uniform(new Color('#70c1ff')),
-    },
-    transparent: true,
-    side: DoubleSide,
-    depthWrite: false,
-    blending: AdditiveBlending,
-  })
+  const material = useMemo<ShaderMaterial & Material>(
+    () =>
+      new ShaderMaterial({
+        vertexShader: HologramVertexShader,
+        fragmentShader: HologramFragmentShader,
+        uniforms: {
+          uTime: new Uniform(0),
+          uColor: new Uniform(new Color('#70c1ff')),
+        },
+        transparent: true,
+        side: DoubleSide,
+        depthWrite: false,
+        blending: AdditiveBlending,
+      }) as ShaderMaterial & Material,
+    [],
+  )
 
   useFrame((_, delta) => {
     material.uniforms.uTime.value += delta
   })
+
+  useEffect(() => () => material.dispose(), [material])
 
   return (
     <group scale={0.25} {...props} dispose={null}>
       <mesh
         //@ts-ignore
         geometry={(nodes.Bunny as Mesh).geometry}
-        material={material}
         position={[0, -0.5, 0]}
         scale={[1, 1.101, 0.738]}
-      />
+      >
+        <primitive object={material} attach='material' />
+      </mesh>
     </group>
   )
 }

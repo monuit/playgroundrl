@@ -18,6 +18,7 @@ import {
   Info,
   PauseCircle,
   PlayCircle,
+  X,
 } from "lucide-react";
 
 const DEFAULT_WARMUP_STEPS = 18;
@@ -309,6 +310,11 @@ export function PlaygroundHero() {
     setRunning((prev) => !prev);
   };
 
+  const handleStop = () => {
+    setRunning(false);
+    resetEnvironment();
+  };
+
   const handleSelectEnv = (id: HeroEnvId) => {
     if (id === activeEnvId) {
       return;
@@ -407,6 +413,15 @@ export function PlaygroundHero() {
               </>
             )}
           </Button>
+          {running && (
+            <Button
+              onClick={handleStop}
+              variant="outline"
+              className="rounded-full border-red-500/50 bg-red-500/15 px-5 text-sm font-semibold uppercase tracking-[0.28em] text-red-200 shadow-[0_12px_32px_rgba(239,68,68,0.2)] hover:bg-red-500/25 hover:text-red-100"
+            >
+              <X className="mr-2 size-4" /> Stop
+            </Button>
+          )}
           <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
             <DialogTrigger asChild>
               <Button

@@ -4,6 +4,7 @@ import localFont from 'next/font/local'
 import { cn } from './lib/utils'
 import { Toaster } from '@/components/ui/sonner'
 import { Metadata } from 'next'
+import ConsoleFilter from '@/lib/consoleFilter'
 
 const krypton = localFont({ src: '../public/krypton.otf' })
 
@@ -37,6 +38,7 @@ export default function RootLayout({ children }) {
     <html lang='en' className={cn('antialiased dark', krypton.className)} suppressHydrationWarning>
       <head />
       <body>
+        <ConsoleFilter />
         <Layout>{children}</Layout>
         <Toaster duration={2000} richColors />
       </body>

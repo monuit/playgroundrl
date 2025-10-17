@@ -399,23 +399,23 @@ class WarehouseBotsEnv implements Env {
       }
     }
 
-    buffer[index++] = leader.battery;
+    buffer[index++] = clamp01(leader.battery);
     buffer[index++] = leader.carrying ? 1 : 0;
-    buffer[index++] = this.backlogSize() / (JOB_BACKLOG_TARGET * 2);
-    buffer[index++] = this.state.completed / Math.max(1, this.state.steps);
+    buffer[index++] = clamp01(this.backlogSize() / (JOB_BACKLOG_TARGET * 2));
+    buffer[index++] = clamp01(this.state.steps > 0 ? this.state.completed / this.state.steps : 0);
 
     const neighborBots = this.state.bots.slice(1).sort((a, b) => leader.position.distanceTo(a.position) - leader.position.distanceTo(b.position));
     neighborBots.slice(0, 2).forEach((bot) => {
-      buffer[index++] = (bot.position.x - leader.position.x) / (GRID_WIDTH * CELL_SIZE);
-      buffer[index++] = (bot.position.y - leader.position.y) / (GRID_HEIGHT * CELL_SIZE);
+      buffer[index++] = clamp01((bot.position.x - leader.position.x) / (GRID_WIDTH * CELL_SIZE) + 0.5);
+      buffer[index++] = clamp01((bot.position.y - leader.position.y) / (GRID_HEIGHT * CELL_SIZE) + 0.5);
     });
 
-    buffer[index++] = this.state.blockingEvents / Math.max(1, this.state.steps);
-    buffer[index++] = leader.velocity;
-    buffer[index++] = leader.facing / 3;
-    buffer[index++] = grid.x / GRID_WIDTH;
-    buffer[index++] = grid.y / GRID_HEIGHT;
-    buffer[index++] = this.state.steps / MAX_STEPS;
+    buffer[index++] = clamp01(this.state.steps > 0 ? this.state.blockingEvents / this.state.steps : 0);
+    buffer[index++] = clamp01(leader.velocity);
+    buffer[index++] = clamp01(leader.facing / 3);
+    buffer[index++] = clamp01(grid.x / GRID_WIDTH);
+    buffer[index++] = clamp01(grid.y / GRID_HEIGHT);
+    buffer[index++] = clamp01(this.state.steps / MAX_STEPS);
 
     while (index < buffer.length) {
       buffer[index++] = 0;

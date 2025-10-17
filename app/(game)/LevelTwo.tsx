@@ -501,6 +501,7 @@ export default function LevelTwo() {
         {springs.map((props, i) => {
           const tile = environment?.agentEnvironment[environment.currentAgentIdx]?.tileMap[i]
           const tileType = tile?.type.type
+          const agentIndexAtTile = agentTiles.indexOf(i)
 
           return (
             <Fragment key={i}>
@@ -508,6 +509,13 @@ export default function LevelTwo() {
                 scale={props.scale}
                 key={i}
                 position={tilePositions[i]}
+                onPointerDown={(event) => {
+                  if (agentIndexAtTile === -1) return
+                  event.stopPropagation()
+                  if (environment.currentAgentIdx !== agentIndexAtTile) {
+                    environment.setCurrentAgentIdx(agentIndexAtTile)
+                  }
+                }}
               >
                 {agentTiles.includes(i) ? (
                   agentTiles[environment.currentAgentIdx] === i ? (

@@ -34,6 +34,10 @@ export const Clone = forwardRef<any, CloneProps>(({ i, movement, ...groupProps }
 
   const agent = agentsAtCurrentPosition[0]
 
+  const handleSelect = () => {
+    environment.setCurrentAgentIdx(agent.index)
+  }
+
   return (
     <animated.group
       /*@ts-ignore */
@@ -43,8 +47,9 @@ export const Clone = forwardRef<any, CloneProps>(({ i, movement, ...groupProps }
       rotation-y={movement[agent.index].rotation}
       ref={ref}
       {...groupProps}
-      onClick={() => {
-        environment.setCurrentAgentIdx(agent.index)
+      onPointerDown={(e) => {
+        e.stopPropagation()
+        handleSelect()
       }}
       onPointerEnter={(e) => {
         e.stopPropagation()

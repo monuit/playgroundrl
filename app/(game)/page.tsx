@@ -259,7 +259,7 @@ export default function Page() {
               <Fish className='size-4' />
               Reef
             </Button>
-            <Button
+            {/* <Button
               size='sm'
               variant={gameState.avatarMode === 'warehouse' ? 'default' : 'outline'}
               aria-pressed={gameState.avatarMode === 'warehouse'}
@@ -276,7 +276,7 @@ export default function Page() {
             >
               <Snowflake className='size-4' />
               Snowplows
-            </Button>
+            </Button> */}
           </div>
         </div>
         <Dialog>

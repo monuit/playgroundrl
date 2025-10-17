@@ -1,6 +1,6 @@
 import { get, getAll } from "@vercel/edge-config";
 
-export type AgentMode = "bunny" | "drone" | "reef" | "warehouse" | "snowplow";
+export type AgentMode = "bunny" | "drone" | "reef";
 
 type EdgeConfigRecord = Partial<Record<keyof PlaygroundEdgeConfig, unknown>>;
 
@@ -22,7 +22,7 @@ export interface PlaygroundEdgeConfig {
 export const EDGE_CONFIG_DEFAULTS = {
   featureFlags: {
     maintenanceMode: false,
-    enabledAgents: ["bunny", "drone", "reef", "warehouse", "snowplow"],
+    enabledAgents: ["bunny", "drone", "reef"],
     defaultAvatar: "bunny",
   },
   caching: {

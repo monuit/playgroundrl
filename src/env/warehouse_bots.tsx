@@ -73,6 +73,7 @@ export interface WarehouseBotsRenderableState {
     battery: number;
     carrying: boolean;
     docking: boolean;
+    velocity: number;
   }>;
   shelves: ShelfState[];
   stations: StationState[];
@@ -431,6 +432,7 @@ class WarehouseBotsEnv implements Env {
         battery: bot.battery,
         carrying: bot.carrying,
         docking: bot.docking,
+        velocity: bot.velocity,
       })),
       shelves: this.state.shelves,
       stations: this.state.stations,
@@ -628,7 +630,7 @@ export const WarehouseBotsScene = memo(function WarehouseBotsScene({
       tempObject.scale.set(0.9, 0.4, 0.9);
       tempObject.updateMatrix();
       stationRef.current!.setMatrixAt(count, tempObject.matrix);
-  const intensity = Math.min(1, Math.max(0, station.queue / JOB_BACKLOG_TARGET));
+      const intensity = Math.min(1, Math.max(0, station.queue / JOB_BACKLOG_TARGET));
       const color = STATION_COLOR.clone().lerp(new Color("#f97316"), intensity);
       stationRef.current!.setColorAt(count, color);
       count += 1;

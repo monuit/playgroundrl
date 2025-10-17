@@ -25,6 +25,18 @@ const GRID_SIDE = Math.sqrt(TILE_COUNT)
 const TILE_CENTER = (GRID_SIDE - 1) / 2
 const TILE_SPACING = 1.1
 const DIRECTIONS: Direction[] = ['left', 'up', 'right', 'down']
+const clamp01 = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return 0
+  }
+  if (value <= 0) {
+    return 0
+  }
+  if (value >= 1) {
+    return 1
+  }
+  return value
+}
 
 const isBorderTile = (index: number) => {
   const x = index % GRID_SIDE
@@ -190,7 +202,10 @@ export default function LevelTwo() {
   }
 
   // MOVE AGENT
-  const move = (direction: Direction, agentIdx: number) => {
+  const move = (direction: Direction | undefined, agentIdx: number) => {
+    if (!direction) {
+      return
+    }
     const agent = environment.agentEnvironment[agentIdx]
     const stride = GRID_SIDE
 
@@ -398,22 +413,37 @@ export default function LevelTwo() {
         })
       }
 
-      const inputData = states.map((state) => [
-        ...state.vision,
-        state.posX,
-        state.posY,
-        state.targetPosX,
-        state.targetPosY,
-        state.distance,
-      ])
+      const inputData = states.map((state) => {
+        const normalizedVision = state.vision.map((cell) => clamp01(cell))
+        const normalizedPosX = clamp01(state.posX)
+        const normalizedPosY = clamp01(state.posY)
+        const normalizedTargetX = clamp01(state.targetPosX)
+        const normalizedTargetY = clamp01(state.targetPosY)
+        const normalizedDistance = clamp01(state.distance / Math.SQRT2)
+
+        return [
+          ...normalizedVision,
+          normalizedPosX,
+          normalizedPosY,
+          normalizedTargetX,
+          normalizedTargetY,
+          normalizedDistance,
+        ]
+      })
 
       const [actions] = await runModel(policyNetwork, inputData, 14)
       for (let i = 0; i < NUM_AGENTS; i++) {
         if (environment.agentEnvironment[i].finished) {
           numFinished += 1
         } else {
-          const actionIdx = Math.max(0, Math.min(DIRECTIONS.length - 1, Math.round(actions[i])))
-          move(DIRECTIONS[actionIdx], i)
+          const rawAction = actions[i]
+          if (!Number.isFinite(rawAction) && process.env.NODE_ENV !== 'production') {
+            console.warn('[LevelTwo] Received non-finite action output, defaulting to 0.', rawAction)
+          }
+          const safeAction = Number.isFinite(rawAction) ? rawAction : 0
+          const actionIdx = Math.max(0, Math.min(DIRECTIONS.length - 1, Math.round(safeAction)))
+          const direction = DIRECTIONS[actionIdx]
+          move(direction, i)
         }
       }
 

@@ -25,6 +25,21 @@ const GRID_SIDE = Math.sqrt(TILE_COUNT)
 const TILE_CENTER = (GRID_SIDE - 1) / 2
 const TILE_SPACING = 1.1
 const DIRECTIONS: Direction[] = ['left', 'up', 'right', 'down']
+const clamp01 = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return 0
+  }
+  if (value <= 0) {
+    return 0
+  }
+  if (value >= 1) {
+    return 1
+  }
+  return value
+}
+const normalizeCoordinate = (value: number) => clamp01(value / (GRID_SIDE - 1))
+const MAX_DISTANCE = Math.sqrt(2) * (GRID_SIDE - 1)
+const normalizeDistance = (distance: number) => clamp01(distance / MAX_DISTANCE)
 
 const isBorderTile = (index: number) => {
   const x = index % GRID_SIDE
@@ -183,7 +198,10 @@ export default function LevelOne() {
   }
 
   // MOVE AGENT
-  const move = (direction: Direction, agentIdx: number) => {
+  const move = (direction: Direction | undefined, agentIdx: number) => {
+    if (!direction) {
+      return
+    }
     const agent = environment.agentEnvironment[agentIdx]
     const stride = GRID_SIDE
 
@@ -372,11 +390,11 @@ export default function LevelOne() {
       }
 
       const inputData = states.map((state) => [
-        state.posX,
-        state.posY,
-        state.targetPosX,
-        state.targetPosY,
-        state.distance,
+        normalizeCoordinate(state.posX),
+        normalizeCoordinate(state.posY),
+        normalizeCoordinate(state.targetPosX),
+        normalizeCoordinate(state.targetPosY),
+        normalizeDistance(state.distance),
       ])
 
       const [actions] = await runModel(policyNetwork, inputData, 5)
@@ -384,8 +402,14 @@ export default function LevelOne() {
         if (environment.agentEnvironment[i].finished) {
           numFinished += 1
         } else {
-          const actionIdx = Math.max(0, Math.min(DIRECTIONS.length - 1, Math.round(actions[i])))
-          move(DIRECTIONS[actionIdx], i)
+          const rawAction = actions[i]
+          if (!Number.isFinite(rawAction) && process.env.NODE_ENV !== 'production') {
+            console.warn('[LevelOne] Received non-finite action output, defaulting to 0.', rawAction)
+          }
+          const safeAction = Number.isFinite(rawAction) ? rawAction : 0
+          const actionIdx = Math.max(0, Math.min(DIRECTIONS.length - 1, Math.round(safeAction)))
+          const direction = DIRECTIONS[actionIdx]
+          move(direction, i)
         }
       }
 

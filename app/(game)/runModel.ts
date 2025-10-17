@@ -1,5 +1,33 @@
 import type { InferenceSession } from 'onnxruntime-web'
 
+const MAX_ABS_VALUE = 1_000;
+
+const sanitizeScalar = (value: number, fallback = 0) => {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+  if (value > MAX_ABS_VALUE) {
+    return MAX_ABS_VALUE;
+  }
+  if (value < -MAX_ABS_VALUE) {
+    return -MAX_ABS_VALUE;
+  }
+  return value;
+};
+
+const assertFiniteTensor = (name: string, data: ArrayLike<number>) => {
+  for (let i = 0; i < data.length; i += 1) {
+    const value = data[i];
+    if (!Number.isFinite(value)) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(`[${name}] non-finite value at index ${i}:`, value);
+      }
+      return false;
+    }
+  }
+  return true;
+};
+
 let ortPromise: Promise<typeof import('onnxruntime-web')> | null = null
 
 const ensureOrt = async () => {
@@ -70,15 +98,38 @@ export async function runModel(model: InferenceSession, input: number[][], input
   const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 
   for (const singleInput of input) {
-    tensor.data.set(singleInput)
+    let clampedInput = false
+    for (let i = 0; i < inputSize; i += 1) {
+      const nextValue = sanitizeScalar(singleInput[i] ?? 0)
+      if (!Number.isFinite(singleInput[i]) || nextValue !== singleInput[i]) {
+        clampedInput = true
+      }
+      tensor.data[i] = nextValue
+    }
+    if (clampedInput && process.env.NODE_ENV !== 'production') {
+      console.warn('[runModel] Sanitized non-finite or out-of-range model input.', singleInput)
+    }
 
     try {
       const start = now()
       const outputData = await model.run(feeds)
       totalTime += now() - start
 
-      const rawValue = outputData[outputName]?.data?.[0] ?? 0
-      outputs.push(Number(rawValue))
+      const tensorOutput = outputData[outputName]
+      const tensorData = tensorOutput?.data as ArrayLike<number> | undefined
+
+      if (!tensorData || tensorData.length === 0) {
+        outputs.push(0)
+        continue
+      }
+
+      if (!assertFiniteTensor(outputName, tensorData) && process.env.NODE_ENV !== 'production') {
+        console.warn('[runModel] Output tensor contained non-finite values. Applying sanitization.')
+      }
+
+      const rawValue = tensorData[0] ?? 0
+      const sanitized = sanitizeScalar(rawValue)
+      outputs.push(sanitized)
     } catch (error) {
       console.error('Inference failed', error)
       throw error

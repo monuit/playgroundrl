@@ -54,6 +54,13 @@ const ACTION_VECTORS: Record<number, Vector2> = {
   7: { x: -1, y: 1 },
 };
 
+const clamp01 = (value: number, fallback = 0): number => {
+  if (!Number.isFinite(value)) return fallback;
+  if (value <= 0) return 0;
+  if (value >= 1) return 1;
+  return value;
+};
+
 const BOUNDS = 120;
 const MAX_STEPS = 240;
 const MAX_TRAIL = 48;
@@ -212,28 +219,30 @@ class BunnyGardenEnv implements Env {
   const nextNearest: BunnyCarrot | null = this.findNextNearest(this.state.bunny, nearestId);
 
     const buffer = new Float32Array([
-      this.state.bunny.x / BOUNDS,
-      this.state.bunny.y / BOUNDS,
-      this.state.velocity.x / BASE_SPEED,
-      this.state.velocity.y / BASE_SPEED,
-      this.state.energy,
-      this.state.steps / MAX_STEPS,
-      this.state.collected / TARGET_CARROTS,
-      nearest ? (nearest.position.x - this.state.bunny.x) / BOUNDS : 0,
-      nearest ? (nearest.position.y - this.state.bunny.y) / BOUNDS : 0,
-      nearest
-        ? Math.hypot(
-            nearest.position.x - this.state.bunny.x,
-            nearest.position.y - this.state.bunny.y
-          ) /
-          (Math.sqrt(2) * BOUNDS)
-        : 1,
-      nextNearest ? (nextNearest.position.x - this.state.bunny.x) / BOUNDS : 0,
-      nextNearest ? (nextNearest.position.y - this.state.bunny.y) / BOUNDS : 0,
-      this.state.carrots.length ? this.state.carrots.filter((carrot) => carrot.active).length / CARROT_COUNT : 0,
-      this.state.obstacles.length ? this.state.obstacles[0].radius / (BOUNDS / 2) : 0,
-      this.state.obstacles.length > 1 ? this.state.obstacles[1].radius / (BOUNDS / 2) : 0,
-      this.state.energy * (nearest ? nearest.value : 0.5),
+      clamp01(this.state.bunny.x / BOUNDS + 0.5),
+      clamp01(this.state.bunny.y / BOUNDS + 0.5),
+      clamp01(this.state.velocity.x / BASE_SPEED + 0.5),
+      clamp01(this.state.velocity.y / BASE_SPEED + 0.5),
+      clamp01(this.state.energy),
+      clamp01(this.state.steps / MAX_STEPS),
+      clamp01(this.state.collected / TARGET_CARROTS),
+      clamp01(nearest ? (nearest.position.x - this.state.bunny.x) / BOUNDS + 0.5 : 0.5),
+      clamp01(nearest ? (nearest.position.y - this.state.bunny.y) / BOUNDS + 0.5 : 0.5),
+      clamp01(
+        nearest
+          ? Math.hypot(
+              nearest.position.x - this.state.bunny.x,
+              nearest.position.y - this.state.bunny.y
+            ) /
+            (Math.sqrt(2) * BOUNDS)
+          : 1
+      ),
+      clamp01(nextNearest ? (nextNearest.position.x - this.state.bunny.x) / BOUNDS + 0.5 : 0.5),
+      clamp01(nextNearest ? (nextNearest.position.y - this.state.bunny.y) / BOUNDS + 0.5 : 0.5),
+      clamp01(this.state.carrots.length ? this.state.carrots.filter((carrot) => carrot.active).length / CARROT_COUNT : 0),
+      clamp01(this.state.obstacles.length ? this.state.obstacles[0].radius / (BOUNDS / 2) : 0),
+      clamp01(this.state.obstacles.length > 1 ? this.state.obstacles[1].radius / (BOUNDS / 2) : 0),
+      clamp01(this.state.energy * (nearest ? nearest.value : 0.5)),
     ]);
 
     const metadata: BunnyRenderableState = {

@@ -64,12 +64,11 @@ let ortPromise: Promise<typeof import('onnxruntime-web')> | null = null
 
 const ensureOrt = async () => {
   if (!ortPromise) {
-    // Dynamically import the WASM-specific build to avoid .mjs dynamic imports
-    // The next.config.js webpack configuration excludes .mjs files from bundling,
-    // so we must use a CommonJS-compatible approach
-    ortPromise = Promise.resolve().then(async () => {
-      // Use the wasm-specific export to avoid threaded/ESM module resolution
-      const ort = (await import('onnxruntime-web/wasm')) as typeof import('onnxruntime-web')
+    // Import the main onnxruntime-web module
+    // The webpack config ignores .mjs files from bundling, so this will resolve to
+    // the require export which is dist/ort.min.js (CommonJS)
+    ortPromise = import('onnxruntime-web').then((module) => {
+      const ort = module as typeof import('onnxruntime-web')
       
       // Keep single-threaded by default; the threaded artifacts will still be copied into
       // public/model so the runtime can pick them up if the environment supports it.

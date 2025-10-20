@@ -97,6 +97,22 @@ const nextConfig = {
     }
 
     config.plugins.push(new NodePolyfillPlugin())
+    
+    // Hook into module resolution to prevent .mjs files from being resolved
+    config.plugins.push({
+      apply: (compiler) => {
+        compiler.hooks.normalModuleFactory.tap('PreventOrtMJS', (nmf) => {
+          nmf.hooks.beforeResolve.tap('PreventOrtMJS', (result) => {
+            if (result && result.request && result.request.match(/ort\..*\.mjs$/)) {
+              // Replace .mjs requests with .js equivalents
+              result.request = result.request.replace(/\.mjs$/, '.js')
+            }
+            return result
+          })
+        })
+      },
+    })
+    
     config.plugins.push(
       new webpack.IgnorePlugin({
         resourceRegExp: ORT_MJS_PATTERN,

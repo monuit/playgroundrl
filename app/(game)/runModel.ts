@@ -64,15 +64,19 @@ let ortPromise: Promise<typeof import('onnxruntime-web')> | null = null
 
 const ensureOrt = async () => {
   if (!ortPromise) {
-    ortPromise = import('onnxruntime-web').then((module) => {
+    // Use dynamic require for CommonJS to avoid webpack trying to resolve ESM bundle files
+    // that are intentionally excluded from bundling
+    ortPromise = Promise.resolve().then(() => {
+      const ort = require('onnxruntime-web')
+      
       // Keep single-threaded by default; the threaded artifacts will still be copied into
       // public/model so the runtime can pick them up if the environment supports it.
-      module.env.wasm.numThreads = 1
+      ort.env.wasm.numThreads = 1
 
       const existingPaths =
-        typeof module.env.wasm.wasmPaths === 'object' && module.env.wasm.wasmPaths ? module.env.wasm.wasmPaths : undefined
+        typeof ort.env.wasm.wasmPaths === 'object' && ort.env.wasm.wasmPaths ? ort.env.wasm.wasmPaths : undefined
 
-      module.env.wasm.wasmPaths = {
+      ort.env.wasm.wasmPaths = {
         ...(existingPaths ?? {}),
         'ort-wasm-simd.wasm': '/model/ort-wasm-simd.wasm',
         'ort-wasm.wasm': '/model/ort-wasm.wasm',
@@ -83,7 +87,7 @@ const ensureOrt = async () => {
         'ort-wasm-threaded.jsep.wasm': '/model/ort-wasm.jsep.wasm',
       } as any
 
-      return module
+      return ort
     })
   }
   return ortPromise

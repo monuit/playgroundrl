@@ -105,9 +105,10 @@ const nextConfig = {
           nmf.hooks.beforeResolve.tap('PreventOrtMJS', (result) => {
             if (result && result.request && result.request.match(/ort\..*\.mjs$/)) {
               // Replace .mjs requests with .js equivalents
+              // Note: beforeResolve is a bailing hook, so modify in place, don't return
               result.request = result.request.replace(/\.mjs$/, '.js')
             }
-            return result
+            // Don't return anything - modify in place for bailing hooks
           })
         })
       },

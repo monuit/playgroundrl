@@ -96,6 +96,14 @@ const nextConfig = {
       config.externals.push('sharp')
     }
 
+    // Add webpack aliases to force CommonJS entry points for onnxruntime-web
+    // to avoid issues with dynamically imported .mjs files that are excluded from bundling
+    if (!config.resolve.alias) {
+      config.resolve.alias = {}
+    }
+    config.resolve.alias['onnxruntime-web'] = 'onnxruntime-web/dist/ort.min.js'
+    config.resolve.alias['onnxruntime-web/wasm'] = 'onnxruntime-web/dist/ort.wasm.min.js'
+
     config.plugins.push(new NodePolyfillPlugin())
     config.plugins.push(
       new webpack.IgnorePlugin({

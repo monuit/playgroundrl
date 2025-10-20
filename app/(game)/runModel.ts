@@ -60,6 +60,34 @@ const coerceTensorValueToNumber = (value: unknown, fallback = 0): number => {
   return Number.isFinite(coerced) ? Math.max(-MAX_ABS_VALUE, Math.min(MAX_ABS_VALUE, coerced)) : fallback
 }
 
+// Preload onnxruntime-web in a try-catch to handle potential module resolution issues
+// This ensures the library is loaded once and reused
+let ortModule: typeof import('onnxruntime-web') | null = null
+
+const loadOrtModule = async () => {
+  if (ortModule) {
+    return ortModule
+  }
+
+  try {
+    // Try to load the CommonJS build directly by requiring the full path
+    // This avoids dynamic imports that might fail in bundled environments
+    if (typeof window !== 'undefined') {
+      // Browser environment - use dynamic import with error handling
+      ortModule = await import(/* webpackIgnore: true */ 'onnxruntime-web/dist/ort.wasm.min.js')
+    } else {
+      // Node environment fallback
+      ortModule = await import('onnxruntime-web')
+    }
+  } catch (error) {
+    console.warn('[runModel] Failed to load onnxruntime-web, retrying with standard import', error)
+    // Fallback to standard import
+    ortModule = await import('onnxruntime-web')
+  }
+
+  return ortModule
+}
+
 let ortPromise: Promise<typeof import('onnxruntime-web')> | null = null
 
 const ensureOrt = async () => {
@@ -67,7 +95,7 @@ const ensureOrt = async () => {
     // Import the main onnxruntime-web module
     // The webpack config ignores .mjs files from bundling, so this will resolve to
     // the require export which is dist/ort.min.js (CommonJS)
-    ortPromise = import('onnxruntime-web').then((module) => {
+    ortPromise = loadOrtModule().then((module) => {
       const ort = module as typeof import('onnxruntime-web')
       
       // Keep single-threaded by default; the threaded artifacts will still be copied into

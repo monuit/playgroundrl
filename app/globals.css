@@ -76,7 +76,7 @@
   }
 
   code {
-    @apply bg-secondary rounded-sm p-[2px] font-bold
+    @apply bg-secondary rounded-sm p-[2px] font-bold;
   }
 
   html,

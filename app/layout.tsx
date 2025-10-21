@@ -1,12 +1,12 @@
 import { Layout } from '@/components/dom/Layout'
 import '@/globals.css'
-import localFont from 'next/font/local'
+import { GeistMono } from 'geist/font/mono'
 import { cn } from './lib/utils'
 import { Toaster } from '@/components/ui/sonner'
 import { Metadata } from 'next'
 import ConsoleFilter from '@/lib/consoleFilter'
 
-const krypton = localFont({ src: '../public/krypton.otf' })
+const geistMono = GeistMono
 
 export const metadata: Metadata = {
   appleWebApp: true,
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang='en' className={cn('antialiased dark', krypton.className)} suppressHydrationWarning>
+    <html lang='en' className={cn('antialiased dark', geistMono.className)} suppressHydrationWarning>
       <head />
       <body>
         <ConsoleFilter />

@@ -1,18 +1,16 @@
 import React from 'react'
 import { GroupProps } from '@react-three/fiber'
-import type { Mesh, Vector3Tuple } from 'three'
-
-type DroneMaterial = NonNullable<Mesh['material']>
+import type { Mesh, Vector3Tuple, Material } from 'three'
 
 export type DroneMaterialSet = {
-  body: DroneMaterial
-  glass: DroneMaterial
-  light: DroneMaterial
-  rotor: DroneMaterial
+  body: Material | Material[]
+  glass: Material | Material[]
+  light: Material | Material[]
+  rotor: Material | Material[]
 }
 
-const MaterialAttachment = ({ material }: { material: DroneMaterial }) => (
-  <primitive object={material} attach='material' />
+const MaterialAttachment = ({ material }: { material: Material | Material[] }) => (
+  <primitive object={material as any} attach='material' />
 )
 
 interface DroneChassisProps extends GroupProps {

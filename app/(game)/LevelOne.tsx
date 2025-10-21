@@ -14,8 +14,9 @@ import { Position, TileType, DefaultTile, GumTile, HologramTile, State } from '@
 import { Perf } from 'r3f-perf'
 import useGameState from './store/useGameState'
 
-import { createModelCpu, runModel, warmupModel } from './runModel'
+import { createModelCpu, runPolicyModel, warmupModel } from './runModel'
 import type { InferenceSession } from 'onnxruntime-web'
+import { createMovementSanitizers } from './movementSanitizer'
 
 type Direction = 'left' | 'right' | 'up' | 'down'
 
@@ -25,21 +26,11 @@ const GRID_SIDE = Math.sqrt(TILE_COUNT)
 const TILE_CENTER = (GRID_SIDE - 1) / 2
 const TILE_SPACING = 1.1
 const DIRECTIONS: Direction[] = ['left', 'up', 'right', 'down']
-const clamp01 = (value: number) => {
-  if (!Number.isFinite(value)) {
-    return 0
-  }
-  if (value <= 0) {
-    return 0
-  }
-  if (value >= 1) {
-    return 1
-  }
-  return value
-}
-const normalizeCoordinate = (value: number) => clamp01(value / (GRID_SIDE - 1))
-const MAX_DISTANCE = Math.sqrt(2) * (GRID_SIDE - 1)
-const normalizeDistance = (distance: number) => clamp01(distance / MAX_DISTANCE)
+const { sanitizeValue, sanitizeRotation, sanitizeTileCoordinate, worldBound } = createMovementSanitizers({
+  gridSide: GRID_SIDE,
+  tileSpacing: TILE_SPACING,
+  context: 'LevelOne',
+})
 
 const isBorderTile = (index: number) => {
   const x = index % GRID_SIDE
@@ -112,6 +103,8 @@ export default function LevelOne() {
   })
 
   const player = useRef<Group>()
+  const loggedInputsRef = useRef(false)
+  const loggedActionsRef = useRef(false)
 
   const environment = useEnvironment()
   const gameState = useGameState()
@@ -207,18 +200,32 @@ export default function LevelOne() {
 
     if (agent.finished) return
 
+    const startingTile = Number.isFinite(agent.startingTile) ? agent.startingTile : 0
+    const fallbackTileX = startingTile % GRID_SIDE
+    const fallbackTileY = Math.floor(startingTile / GRID_SIDE)
+
+    const currentTileX = sanitizeTileCoordinate('tileX', agent.position.x, fallbackTileX)
+    const currentTileY = sanitizeTileCoordinate('tileY', agent.position.y, fallbackTileY)
+
+    const currentWorldX = sanitizeValue('positionXCurrent', agent.positionX, agent.positionX, -worldBound, worldBound)
+    const currentWorldZ = sanitizeValue('positionZCurrent', agent.positionZ, agent.positionZ, -worldBound, worldBound)
+    const currentRotation = sanitizeRotation(agent.rotation, agent.rotation)
+
     let nextTile, nextTileType, positionX, positionZ, rotation
+    let updatedTileX = currentTileX
+    let updatedTileY = currentTileY
 
     switch (direction) {
       case 'left':
-        nextTile = agent.tileMap[agent.position.x - 1 + stride * agent.position.y]
+        if (currentTileX - 1 < 0) return
+        nextTile = agent.tileMap[currentTileX - 1 + stride * currentTileY]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
-        agent.position.x -= 1
-        positionX = agent.positionX - TILE_SPACING
-        rotation = -Math.PI * 0.5
+  updatedTileX = currentTileX - 1
+  positionX = sanitizeValue('positionX', currentWorldX - TILE_SPACING, currentWorldX, -worldBound, worldBound)
+  rotation = sanitizeRotation(-Math.PI * 0.5, currentRotation)
         if (nextTileType.type === 'HOLOGRAM') {
           agent.setPositionY(-0.9, agentIdx)
           agent.setFinished(true, agentIdx)
@@ -238,17 +245,19 @@ export default function LevelOne() {
         })
         agent.setRotation(rotation, agentIdx)
         agent.setPositionX(positionX, agentIdx)
+        agent.setPosition({ x: updatedTileX, y: updatedTileY }, agentIdx)
         break
 
       case 'right':
-        nextTile = agent.tileMap[agent.position.x + 1 + stride * agent.position.y]
+        if (currentTileX + 1 >= GRID_SIDE) return
+        nextTile = agent.tileMap[currentTileX + 1 + stride * currentTileY]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
-        agent.position.x += 1
-        positionX = agent.positionX + TILE_SPACING
-        rotation = Math.PI * 0.5
+  updatedTileX = currentTileX + 1
+  positionX = sanitizeValue('positionX', currentWorldX + TILE_SPACING, currentWorldX, -worldBound, worldBound)
+  rotation = sanitizeRotation(Math.PI * 0.5, currentRotation)
         if (nextTileType.type === 'HOLOGRAM') {
           agent.setPositionY(-0.9, agentIdx)
           agent.setFinished(true, agentIdx)
@@ -266,20 +275,22 @@ export default function LevelOne() {
           }
           return {}
         })
-        agent.setRotation(rotation, agentIdx)
-        agent.setPositionX(positionX, agentIdx)
+  agent.setRotation(rotation, agentIdx)
+  agent.setPositionX(positionX, agentIdx)
+  agent.setPosition({ x: updatedTileX, y: updatedTileY }, agentIdx)
 
         break
 
       case 'up':
-        nextTile = agent.tileMap[agent.position.x + stride * (agent.position.y - 1)]
+        if (currentTileY - 1 < 0) return
+        nextTile = agent.tileMap[currentTileX + stride * (currentTileY - 1)]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
-        agent.position.y -= 1
-        positionZ = agent.positionZ - TILE_SPACING
-        rotation = Math.PI
+  updatedTileY = currentTileY - 1
+  positionZ = sanitizeValue('positionZ', currentWorldZ - TILE_SPACING, currentWorldZ, -worldBound, worldBound)
+  rotation = sanitizeRotation(Math.PI, currentRotation)
 
         if (nextTileType.type === 'HOLOGRAM') {
           agent.setPositionY(-0.9, agentIdx)
@@ -298,19 +309,21 @@ export default function LevelOne() {
           }
           return {}
         })
-        agent.setRotation(rotation, agentIdx)
-        agent.setPositionZ(positionZ, agentIdx)
+  agent.setRotation(rotation, agentIdx)
+  agent.setPositionZ(positionZ, agentIdx)
+  agent.setPosition({ x: updatedTileX, y: updatedTileY }, agentIdx)
         break
 
       case 'down':
-        nextTile = agent.tileMap[agent.position.x + stride * (agent.position.y + 1)]
+        if (currentTileY + 1 >= GRID_SIDE) return
+        nextTile = agent.tileMap[currentTileX + stride * (currentTileY + 1)]
         nextTileType = nextTile?.type
 
         if (!nextTileType || !nextTileType?.type) return
 
-        agent.position.y += 1
-        positionZ = agent.positionZ + TILE_SPACING
-        rotation = 0
+  updatedTileY = currentTileY + 1
+  positionZ = sanitizeValue('positionZ', currentWorldZ + TILE_SPACING, currentWorldZ, -worldBound, worldBound)
+  rotation = sanitizeRotation(0, currentRotation)
 
         if (nextTileType.type === 'HOLOGRAM') {
           agent.setPositionY(-0.9, agentIdx)
@@ -331,6 +344,7 @@ export default function LevelOne() {
         })
         agent.setRotation(rotation, agentIdx)
         agent.setPositionZ(positionZ, agentIdx)
+        agent.setPosition({ x: updatedTileX, y: updatedTileY }, agentIdx)
 
         break
     }
@@ -390,25 +404,34 @@ export default function LevelOne() {
       }
 
       const inputData = states.map((state) => [
-        normalizeCoordinate(state.posX),
-        normalizeCoordinate(state.posY),
-        normalizeCoordinate(state.targetPosX),
-        normalizeCoordinate(state.targetPosY),
-        normalizeDistance(state.distance),
+        state.posX,
+        state.posY,
+        state.targetPosX,
+        state.targetPosY,
+        state.distance,
       ])
 
-      const [actions] = await runModel(policyNetwork, inputData, 5)
+      if (process.env.NODE_ENV !== 'production' && !loggedInputsRef.current) {
+        console.debug('[LevelOne] Sample policy inputs', inputData.slice(0, 3))
+        loggedInputsRef.current = true
+      }
+
+      const [actions] = await runPolicyModel(policyNetwork, inputData, 5, 4)
+      if (process.env.NODE_ENV !== 'production' && !loggedActionsRef.current) {
+        const sampleActions = Array.isArray(actions) ? actions.slice(0, 5) : [actions]
+        console.debug('[LevelOne] Sample policy actions', sampleActions)
+        loggedActionsRef.current = true
+      }
       for (let i = 0; i < NUM_AGENTS; i++) {
         if (environment.agentEnvironment[i].finished) {
           numFinished += 1
         } else {
-          const rawAction = actions[i]
-          if (!Number.isFinite(rawAction) && process.env.NODE_ENV !== 'production') {
-            console.warn('[LevelOne] Received non-finite action output, defaulting to 0.', rawAction)
+          const actionIdx = actions[i] ?? 0
+          if (!Number.isFinite(actionIdx) && process.env.NODE_ENV !== 'production') {
+            console.warn('[LevelOne] Received non-finite action index, defaulting to 0.', actionIdx)
           }
-          const safeAction = Number.isFinite(rawAction) ? rawAction : 0
-          const actionIdx = Math.max(0, Math.min(DIRECTIONS.length - 1, Math.round(safeAction)))
-          const direction = DIRECTIONS[actionIdx]
+          const safeActionIdx = Number.isFinite(actionIdx) ? Math.max(0, Math.min(DIRECTIONS.length - 1, actionIdx)) : 0
+          const direction = DIRECTIONS[safeActionIdx]
           move(direction, i)
         }
       }

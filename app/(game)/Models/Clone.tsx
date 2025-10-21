@@ -34,6 +34,21 @@ export const Clone = forwardRef<any, CloneProps>(({ i, movement, ...groupProps }
 
   const agent = agentsAtCurrentPosition[0]
 
+  if (process.env.NODE_ENV !== 'production') {
+    const samplePosX = movement[agent.index]?.positionX?.get?.()
+    const samplePosZ = movement[agent.index]?.positionZ?.get?.()
+    const sampleRotation = movement[agent.index]?.rotation?.get?.()
+    if (!Number.isFinite(samplePosX) || !Number.isFinite(samplePosZ) || !Number.isFinite(sampleRotation)) {
+      console.error('[Clone] Non-finite transform detected', {
+        tile: agent.position,
+        samplePosX,
+        samplePosZ,
+        sampleRotation,
+        agentIndex: agent.index,
+      })
+    }
+  }
+
   const handleSelect = () => {
     environment.setCurrentAgentIdx(agent.index)
   }

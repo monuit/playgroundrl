@@ -98,21 +98,15 @@ const nextConfig = {
 
     config.plugins.push(new NodePolyfillPlugin())
     
-    // Hook into module resolution to prevent .mjs files from being resolved
-    config.plugins.push({
-      apply: (compiler) => {
-        compiler.hooks.normalModuleFactory.tap('PreventOrtMJS', (nmf) => {
-          nmf.hooks.beforeResolve.tap('PreventOrtMJS', (result) => {
-            if (result && result.request && result.request.match(/ort\..*\.mjs$/)) {
-              // Replace .mjs requests with .js equivalents
-              // Note: beforeResolve is a bailing hook, so modify in place, don't return
-              result.request = result.request.replace(/\.mjs$/, '.js')
-            }
-            // Don't return anything - modify in place for bailing hooks
-          })
-        })
-      },
-    })
+    // Replace any .mjs imports from onnxruntime-web with their .js CommonJS equivalents
+    config.plugins.push(
+      new webpack.NormalModuleReplacementPlugin(
+        /ort\..*\.mjs$/,
+        (resource) => {
+          resource.request = resource.request.replace(/\.mjs$/, '.js')
+        }
+      )
+    )
     
     config.plugins.push(
       new webpack.IgnorePlugin({

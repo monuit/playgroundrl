@@ -91,6 +91,10 @@ const ensureOrt = async () => {
     ortPromise = loadOrtModule().then((module) => {
       const ort = module as typeof import('onnxruntime-web')
       
+      // Suppress non-critical ONNX Runtime warnings (e.g., unknown CPU vendor)
+      // Only show errors and critical messages
+      ort.env.logLevel = 'error'
+      
       // Keep single-threaded by default; the threaded artifacts will still be copied into
       // public/model so the runtime can pick them up if the environment supports it.
       ort.env.wasm.numThreads = 1
@@ -207,4 +211,66 @@ export async function runModel(model: InferenceSession, input: number[][], input
   }
 
   return [outputs, totalTime / input.length]
+}
+
+/**
+ * Run a batch of inputs through the policy network and return action indices.
+ * Expects the model to output logits (one row per input, one column per action).
+ * Returns the argmax action for each input.
+ */
+export async function runPolicyModel(model: InferenceSession, input: number[][], inputSize: number, numActions: number = 4) {
+  if (!model || inputSize <= 0 || input.length === 0 || numActions <= 0) {
+    return [new Array(input.length).fill(0), 0]
+  }
+
+  const ort: any = await ensureOrt()
+  const tensor = new ort.Tensor('float32', new Float32Array(inputSize), [1, inputSize])
+  const feeds: Record<string, any> = { [model.inputNames[0]]: tensor }
+  const outputName = model.outputNames[0]
+  const actions: number[] = []
+  let totalTime = 0
+
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+
+  for (const singleInput of input) {
+    let clampedInput = false
+    for (let i = 0; i < inputSize; i += 1) {
+      const nextValue = sanitizeScalar(singleInput[i] ?? 0)
+      if (!Number.isFinite(singleInput[i]) || nextValue !== singleInput[i]) clampedInput = true
+      tensor.data[i] = nextValue
+    }
+
+    try {
+      const start = now()
+      const outputData: Record<string, any> = await model.run(feeds)
+      totalTime += now() - start
+
+      const tensorOutput = outputData[outputName]
+      const logits = tensorOutput?.data as ArrayLike<unknown> | undefined
+
+      if (!logits || logits.length === 0) {
+        actions.push(0)
+        continue
+      }
+
+      // Find argmax of logits to get the action
+      let maxLogit = -Infinity
+      let argmaxAction = 0
+
+      for (let i = 0; i < numActions && i < logits.length; i++) {
+        const logit = coerceTensorValueToNumber((logits as any)[i], -Infinity)
+        if (logit > maxLogit) {
+          maxLogit = logit
+          argmaxAction = i
+        }
+      }
+
+      actions.push(argmaxAction)
+    } catch (error) {
+      console.error('[runPolicyModel] Inference failed', error)
+      throw error
+    }
+  }
+
+  return [actions, totalTime / input.length]
 }

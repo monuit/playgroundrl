@@ -99,6 +99,18 @@ const nextConfig = {
     config.plugins.push(new NodePolyfillPlugin())
     
     // Replace any .mjs imports from onnxruntime-web with their .js CommonJS equivalents
+    // Special handling: if .js file doesn't exist in ort dist, replace bundle variant with ort.all.min.js
+    config.plugins.push(
+      new webpack.NormalModuleReplacementPlugin(
+        /ort\.bundle\.min\.mjs$/,
+        (resource) => {
+          // ort.bundle.min.mjs doesn't have a .js variant, use ort.all.min.js instead
+          resource.request = resource.request.replace(/ort\.bundle\.min\.mjs$/, 'ort.all.min.js')
+        }
+      )
+    )
+    
+    // Replace other .mjs variants with their .js equivalents (which do exist)
     config.plugins.push(
       new webpack.NormalModuleReplacementPlugin(
         /ort\..*\.mjs$/,

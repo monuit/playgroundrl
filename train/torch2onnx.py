@@ -14,10 +14,7 @@ class OnnxableAgent(torch.nn.Module):
 
     def forward(self, observation: torch.Tensor):
         logits = self.agent(observation)
-        probs = Categorical(logits=logits)
-        action = probs.sample()
-        print(action)
-        return action
+        return logits
     
 args = tyro.cli(Args)
 device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
@@ -27,25 +24,19 @@ agent.load_state_dict(torch.load("models/leveltwo/actor.pth"))
 
 onnx_agent = OnnxableAgent(agent)
 
-distance = np.linalg.norm(np.array([0, 0]) - np.array([1, 1]))
-dummy_input = torch.Tensor([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, distance]).unsqueeze(0)
+# Create dummy input matching the observation space
+# For LevelTwo: 14 values (2 agent positions, 2 target positions, distance, + 9 enemy positions)
+dummy_input = torch.zeros(1, 14, dtype=torch.float32)
 
 torch.onnx.export(
     onnx_agent,
     dummy_input,
     "actor.onnx",
     opset_version=17,
-    input_names=["input"],
-    output_names=["action", 
-                #   "log_prob",
-                #     "entropy",
-                #       "value"
-                      ],
+    input_names=["observation"],
+    output_names=["logits"],
     dynamic_axes={
-        "input": {0: "batch_size"},
-        "action": {0: "batch_size"},
-        # "log_prob": {0: "batch_size"},
-        # "entropy": {0: "batch_size"},
-        # "value": {0: "batch_size"},
+        "observation": {0: "batch_size"},
+        "logits": {0: "batch_size"},
     },
 )
